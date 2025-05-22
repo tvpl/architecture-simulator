@@ -4,7 +4,7 @@ Este projeto é um simulador visual e funcional que permite modelar e simular ar
 
 ## Características Principais (Versão 5.3)
 
-- **Interface visual interativa** inspirada no Miro, com canvas em tela cheia
+- **Interface visual interativa** Interface com canvas em tela cheia
 - **Painéis flutuantes** para todos os controles e configurações
 - **Componentes arrastáveis** para criar arquiteturas personalizadas
 - **Configuração detalhada** de cada componente (latência, instâncias, partições, etc.)
