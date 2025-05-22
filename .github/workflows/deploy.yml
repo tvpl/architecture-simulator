@@ -1,4 +1,4 @@
-name: Build and Deploy
+name: Build and Deploy React App
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -22,13 +22,17 @@ jobs:
           node-version: '18'
 
       - name: Instalar dependências
-        run: npm ci
+        run: npm install --legacy-peer-deps
 
       - name: Build do projeto
         run: npm run build
 
-      - name: Deploy para GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
+      - name: Copiar arquivos para VPS
+        uses: appleboy/scp-action@master
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./simulador-arquitetura/dist
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          source: "simulador-arquitetura/dist/*"
+          target: "/var/www/html"
