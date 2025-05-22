@@ -1,29 +1,31 @@
-name: Deploy React App to VPS
+name: Build and Deploy React App
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout do código
         uses: actions/checkout@v3
 
-      - name: Instalação de dependências
-        run: |
-          npm install
-          npm run build
+      - name: Instalar dependências
+        run: npm install --legacy-peer-deps
+        working-directory: ./simulador-arquitetura
 
-      - name: Deploy via SSH
+      - name: Build do projeto
+        run: npm run build
+        working-directory: ./simulador-arquitetura
+
+      - name: Enviar arquivos para VPS
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
-          port: ${{ secrets.SSH_PORT }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "build/*"
+          port: ${{ secrets.SSH_PORT }}
+          source: "simulador-arquitetura/build/*"
           target: "/var/www/html"
