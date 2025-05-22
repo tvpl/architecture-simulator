@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  simulador:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: simulador-arquitetura
+    ports:
+      - "5173:5173"
+    # Volumes removidos para garantir que o código copiado no Dockerfile seja usado
+    # Isso evita o erro ENOENT quando os arquivos não existem no host
+    environment:
+      - NODE_ENV=development
+    restart: unless-stopped
+    # Healthcheck para garantir que o serviço está funcionando
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:5173"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
