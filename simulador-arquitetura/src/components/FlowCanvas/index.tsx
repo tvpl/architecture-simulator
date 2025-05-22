@@ -40,18 +40,35 @@ import { usePanelManager } from '@/components/ui/FloatingPanelManager';
 import { ComponentsPanel } from '../ComponentsPanel';
 import html2canvas from 'html2canvas';
 
-// Tipagem forte para os valores padrão dos nós
-interface NodeDefaults {
-  kafka: { brokers: number; partitions: number; replicationFactor: number; latency: number; cost: number; costPerInstance: number; };
-  microservice: { instances: number; latency: number; cost: number; costPerInstance: number; };
-  storage: { latency: number; throughput: number; capacity: number; cost: number; costPerGB: number; };
-  rabbit: { queues: number; exchanges: number; latency: number; cost: number; costPerQueue: number; };
-  servicebus: { queues: number; topics: number; subscriptions: number; latency: number; cost: number; costPerQueue: number; };
-  function: { maxReplicas: number; minReplicas: number; latency: number; cost: number; costPerExecution: number; };
-  generic: { instances: number; latency: number; cost: number; costPerInstance: number; };
-}
+// Definição dos tipos de nós personalizados
+const nodeTypes: NodeTypes = {
+  kafka: KafkaNode,
+  microservice: MicroserviceNode,
+  storage: StorageNode,
+  queue: QueueNode,
+  topic: TopicNode,
+  cluster: ClusterNode,
+  rabbit: RabbitNode,
+  start: StartNode,
+  servicebus: ServiceBusNode,
+  function: FunctionNode,
+  generic: GenericNode,
+  startflow: StartFlowNode,
+};
 
-const defaultNodeValues: NodeDefaults = {
+// Definição dos tipos de arestas personalizadas
+const edgeTypes: EdgeTypes = {
+  custom: CustomEdge,
+};
+
+// Nós iniciais para demonstração
+const initialNodes: Node[] = [];
+
+// Arestas iniciais para demonstração
+const initialEdges: Edge[] = [];
+
+// Valores padrão para os nós
+const defaultNodeValues = {
   kafka: {
     brokers: 3,
     partitions: 5,
@@ -124,7 +141,7 @@ export function FlowCanvas() {
   });
   
   // Estado para armazenar os valores padrão dos nós
-  const [nodeDefaults, setNodeDefaults] = useState<NodeDefaults>(defaultNodeValues);
+  const [nodeDefaults, setNodeDefaults] = useState(defaultNodeValues);
   
   const { fitView } = useReactFlow();
   const panelManager = usePanelManager();
