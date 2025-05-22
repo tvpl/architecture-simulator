@@ -1,31 +1,34 @@
-name: Build and Deploy React App
+name: Build and Deploy
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: simulador-arquitetura
 
     steps:
       - name: Checkout do código
         uses: actions/checkout@v3
 
+      - name: Configurar Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
       - name: Instalar dependências
-        run: npm install --legacy-peer-deps
-        working-directory: ./simulador-arquitetura
+        run: npm ci
 
       - name: Build do projeto
         run: npm run build
-        working-directory: ./simulador-arquitetura
 
-      - name: Enviar arquivos para VPS
-        uses: appleboy/scp-action@master
+      - name: Deploy para GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT }}
-          source: "simulador-arquitetura/build/*"
-          target: "/var/www/html"
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./simulador-arquitetura/dist
