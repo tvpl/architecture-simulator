@@ -1,0 +1,103 @@
+/* App.css - Estilos específicos da aplicação */
+
+.react-flow__viewport {
+  background-color: hsl(var(--background));
+}
+
+.react-flow__controls {
+  background-color: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+}
+
+.react-flow__controls button {
+  background-color: hsl(var(--background));
+  border-bottom: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground));
+}
+
+.react-flow__controls button:hover {
+  background-color: hsl(var(--accent));
+}
+
+.react-flow__minimap {
+  background-color: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+}
+
+.react-flow__background {
+  background-color: hsl(var(--background));
+}
+
+/* Customização dos nós */
+.react-flow__node {
+  border-radius: 8px;
+  border: 2px solid hsl(var(--border));
+  background-color: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+.react-flow__node:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.react-flow__node.selected {
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 0 2px hsl(var(--primary) / 0.2);
+}
+
+/* Customização das arestas */
+.react-flow__edge-path {
+  stroke: hsl(var(--muted-foreground));
+  stroke-width: 2;
+}
+
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: hsl(var(--primary));
+  stroke-width: 3;
+}
+
+.react-flow__edge-text {
+  fill: hsl(var(--foreground));
+  font-size: 12px;
+  background-color: hsl(var(--background));
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+/* Animações personalizadas */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Estilos para drag and drop */
+.dragging {
+  opacity: 0.5;
+  transform: rotate(5deg);
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+  .react-flow__controls {
+    bottom: 10px;
+    left: 10px;
+  }
+  
+  .react-flow__minimap {
+    width: 120px;
+    height: 80px;
+  }
+}
+
