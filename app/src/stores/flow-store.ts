@@ -4,7 +4,7 @@
  * Wraps @xyflow/react state management with domain-aware CRUD operations.
  */
 import { create } from "zustand";
-import { subscribeWithSelector } from "zustand/middleware";
+import { subscribeWithSelector, persist } from "zustand/middleware";
 import {
   applyNodeChanges,
   applyEdgeChanges,
@@ -76,7 +76,9 @@ interface FlowState {
 let nodeCounter = 0;
 
 export const useFlowStore = create<FlowState>()(
-  subscribeWithSelector((set, get) => ({
+  subscribeWithSelector(
+    persist(
+      (set, get) => ({
     nodes: [],
     edges: [],
     projectName: "Minha Arquitetura",
@@ -269,7 +271,17 @@ export const useFlowStore = create<FlowState>()(
     clearCanvas: () => {
       set({ nodes: [], edges: [] });
     },
-  }))
+      }),
+      {
+        name: "aws-arch-v2",
+        partialize: (state) => ({
+          nodes: state.nodes,
+          edges: state.edges,
+          projectName: state.projectName,
+        }),
+      }
+    )
+  )
 );
 
 // ── Selectors ─────────────────────────────────────────────────────────────────

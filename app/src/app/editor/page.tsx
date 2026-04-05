@@ -5,6 +5,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { FlowCanvas } from "@/components/canvas/FlowCanvas";
 import { PropertiesPanel } from "@/components/panels/PropertiesPanel";
 import { SimulationPanel } from "@/components/simulation/SimulationPanel";
+import { ErrorBoundary } from "@/components/error-boundary";
 
 export default function EditorPage() {
   return (
@@ -14,7 +15,9 @@ export default function EditorPage() {
         <div className="flex flex-1 min-h-0 relative">
           <Sidebar />
           <main className="flex-1 relative min-w-0">
-            <FlowCanvas />
+            <ErrorBoundary>
+              <FlowCanvas />
+            </ErrorBoundary>
             <PropertiesPanel />
             <SimulationPanel />
           </main>

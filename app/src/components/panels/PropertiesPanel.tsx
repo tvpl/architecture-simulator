@@ -4,6 +4,7 @@
  * Renders fields from the ServiceDefinition.configSections dynamically.
  */
 import React, { useEffect, useState, useCallback } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { X, Trash2, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { registry } from "@/registry";
@@ -28,10 +29,18 @@ export function PropertiesPanel() {
   const { nodes, edges, updateNodeData, updateNodeConfig, updateEdgeData, removeNode, removeEdge, duplicateNode } =
     useFlowStore();
 
-  if (!propertiesPanelOpen || (!selectedNodeId && !selectedEdgeId)) return null;
+  const isVisible = propertiesPanelOpen && (!!selectedNodeId || !!selectedEdgeId);
 
   return (
-    <div className="absolute top-2 right-2 bottom-2 w-80 z-20 flex flex-col bg-background border border-border rounded-xl shadow-xl overflow-hidden">
+    <AnimatePresence>
+      {isVisible && (
+    <motion.div
+      initial={{ x: "100%", opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      exit={{ x: "100%", opacity: 0 }}
+      transition={{ type: "spring", damping: 30, stiffness: 300 }}
+      className="absolute top-2 right-2 bottom-2 w-80 z-20 flex flex-col bg-background border border-border rounded-xl shadow-xl overflow-hidden"
+    >
       {selectedNodeId && (
         <NodePropertiesContent
           nodeId={selectedNodeId}
@@ -53,7 +62,9 @@ export function PropertiesPanel() {
           onClose={closePropertiesPanel}
         />
       )}
-    </div>
+    </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 

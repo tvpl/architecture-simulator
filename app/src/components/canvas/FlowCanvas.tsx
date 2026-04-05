@@ -3,7 +3,7 @@
  * FlowCanvas — main canvas component.
  * Connects @xyflow/react with Zustand stores and the registry-driven node/edge types.
  */
-import React, { useCallback, useRef } from "react";
+import React, { useCallback, useRef, useMemo } from "react";
 import {
   ReactFlow,
   Background,
@@ -18,6 +18,7 @@ import { useFlowStore, type FlowNode, type FlowEdge } from "@/stores/flow-store"
 import { useSelectionStore } from "@/stores/selection-store";
 import { useUIStore } from "@/stores/ui-store";
 import { useLayerStore } from "@/stores/layer-store";
+import { useSimulationStore } from "@/stores/simulation-store";
 import type { AWSServiceType } from "@/domain/entities/node";
 import { ServiceNode } from "@/components/nodes/base/ServiceNode";
 import { ContainerNode } from "@/components/nodes/base/ContainerNode";
@@ -39,6 +40,7 @@ const edgeTypes = {
 export function FlowCanvas() {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const activeLayer = useLayerStore((s) => s.activeLayer);
+  const simStatus = useSimulationStore((s) => s.status);
 
   const {
     nodes,
@@ -103,6 +105,19 @@ export function FlowCanvas() {
     clearSelection();
   }, [clearSelection]);
 
+  // ── Animated edges (simulation layer) ───────────────────────────────────
+
+  const animatedEdges = useMemo(
+    () =>
+      edges.map((e) => ({
+        ...e,
+        animated:
+          (activeLayer === "simulation" && simStatus === "complete") ||
+          activeLayer === "services",
+      })),
+    [edges, activeLayer, simStatus]
+  );
+
   // ── MiniMap color ────────────────────────────────────────────────────────
 
   const nodeColor = useCallback((node: { data?: { type?: string } }) => {
@@ -137,7 +152,7 @@ export function FlowCanvas() {
     <div className="w-full h-full" ref={wrapperRef}>
       <ReactFlow<FlowNode, FlowEdge>
         nodes={nodes}
-        edges={edges}
+        edges={animatedEdges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}

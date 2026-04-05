@@ -9,14 +9,17 @@ import {
   ImageDown,
   ChevronDown,
   Cpu,
+  Moon,
+  Sun,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { LayerSwitcher } from "./LayerSwitcher";
-import { useFlowStore } from "@/stores/flow-store";
+import { useFlowStore, selectDomainNodes, selectDomainEdges } from "@/stores/flow-store";
 import { useSimulationStore } from "@/stores/simulation-store";
 import { useUIStore } from "@/stores/ui-store";
+import { useThemeStore } from "@/stores/theme-store";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { selectDomainNodes, selectDomainEdges } from "@/stores/flow-store";
 import { cn } from "@/lib/utils";
 
 export function Navbar() {
@@ -26,6 +29,7 @@ export function Navbar() {
     useFlowStore();
   const { status, setRunning, setResult, setError, reset } = useSimulationStore();
   const { toggleSimulationPanel, openSimulationPanel } = useUIStore();
+  const { theme, toggleTheme } = useThemeStore();
 
   const isSimulating = status === "running";
 
@@ -36,12 +40,13 @@ export function Navbar() {
     const domainEdges = selectDomainEdges(useFlowStore.getState());
 
     if (domainNodes.length === 0) {
-      alert("Adicione pelo menos um componente ao diagrama antes de simular.");
+      toast.warning("Adicione pelo menos um componente ao diagrama antes de simular.");
       return;
     }
 
     setRunning();
     openSimulationPanel();
+    toast.loading("Simulando arquitetura...", { id: "sim" });
 
     try {
       const response = await fetch("/api/simulation", {
@@ -53,24 +58,32 @@ export function Navbar() {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const result = await response.json();
       setResult(result);
+      toast.success("Simulação concluída com sucesso!", { id: "sim" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao simular");
+      const msg = err instanceof Error ? err.message : "Erro ao simular";
+      setError(msg);
+      toast.error(`Falha na simulação: ${msg}`, { id: "sim" });
     }
   }, [setRunning, setResult, setError, openSimulationPanel]);
 
   // ── Export/Import ──────────────────────────────────────────────────────
 
   const handleExportJson = useCallback(() => {
-    const data = exportProject();
-    const blob = new Blob([JSON.stringify(data, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${projectName.replace(/\s+/g, "-").toLowerCase()}-${Date.now()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    try {
+      const data = exportProject();
+      const blob = new Blob([JSON.stringify(data, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${projectName.replace(/\s+/g, "-").toLowerCase()}-${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("JSON exportado com sucesso.");
+    } catch {
+      toast.error("Erro ao exportar JSON.");
+    }
   }, [exportProject, projectName]);
 
   const handleImportJson = useCallback(() => {
@@ -86,8 +99,9 @@ export function Navbar() {
         try {
           const data = JSON.parse(evt.target?.result as string);
           importProject(data);
+          toast.success("Projeto importado com sucesso.");
         } catch {
-          alert("Arquivo JSON inválido.");
+          toast.error("Arquivo JSON inválido ou corrompido.");
         }
       };
       reader.readAsText(file);
@@ -100,16 +114,28 @@ export function Navbar() {
     try {
       const { toPng } = await import("html-to-image");
       const viewport = document.querySelector<HTMLElement>(".react-flow__viewport");
-      if (!viewport) return;
+      if (!viewport) {
+        toast.error("Nenhum diagrama encontrado para exportar.");
+        return;
+      }
       const dataUrl = await toPng(viewport);
       const a = document.createElement("a");
       a.href = dataUrl;
       a.download = `arquitetura-${Date.now()}.png`;
       a.click();
+      toast.success("Imagem exportada com sucesso.");
     } catch {
-      alert("Export de imagem não disponível neste ambiente.");
+      toast.error("Erro ao exportar imagem.");
     }
   }, []);
+
+  const handleClear = useCallback(() => {
+    if (confirm("Limpar canvas? Esta ação não pode ser desfeita.")) {
+      clearCanvas();
+      reset();
+      toast.info("Canvas limpo.");
+    }
+  }, [clearCanvas, reset]);
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -211,6 +237,16 @@ export function Navbar() {
             <TooltipContent>Exportar como imagem</TooltipContent>
           </Tooltip>
 
+          {/* Dark mode toggle */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={toggleTheme}>
+                {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{theme === "dark" ? "Modo claro" : "Modo escuro"}</TooltipContent>
+          </Tooltip>
+
           {/* Reset */}
           <Tooltip>
             <TooltipTrigger asChild>
@@ -218,12 +254,7 @@ export function Navbar() {
                 size="icon"
                 variant="ghost"
                 className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                onClick={() => {
-                  if (confirm("Limpar canvas? Esta ação não pode ser desfeita.")) {
-                    clearCanvas();
-                    reset();
-                  }
-                }}
+                onClick={handleClear}
               >
                 <RotateCcw className="w-4 h-4" />
               </Button>
