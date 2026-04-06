@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { registry } from "@/registry";
 import { useLayerStore } from "@/stores/layer-store";
 import { useSelectionStore } from "@/stores/selection-store";
+import { useValidationStore } from "@/stores/validation-store";
 import { formatUSD } from "@/lib/formatters";
 import { calculateServiceCost } from "@/domain/services/cost";
 import { calculateAvailability } from "@/domain/services/availability";
@@ -21,6 +22,8 @@ import { ServiceIcon } from "./ServiceIcon";
 const ServiceNode = memo(function ServiceNode({ data, selected }: NodeProps<FlowNode>) {
   const activeLayer = useLayerStore((s) => s.activeLayer);
   const selectNode = useSelectionStore((s) => s.selectNode);
+  const hasError = useValidationStore((s) => s.errorNodeIds.includes(data.id));
+  const hasWarning = useValidationStore((s) => s.warningNodeIds.includes(data.id));
 
   const def = registry.get(data.type);
   if (!def) return null;
@@ -39,6 +42,10 @@ const ServiceNode = memo(function ServiceNode({ data, selected }: NodeProps<Flow
         "hover:shadow-md",
         selected
           ? `${def.borderColor} shadow-lg ring-2 ring-offset-1 ring-primary/30`
+          : hasError
+          ? "border-red-500 dark:border-red-500"
+          : hasWarning
+          ? "border-yellow-400 dark:border-yellow-400"
           : "border-border hover:border-primary/40"
       )}
     >
@@ -59,6 +66,20 @@ const ServiceNode = memo(function ServiceNode({ data, selected }: NodeProps<Flow
             <div className="text-xs font-semibold text-foreground truncate">{data.label}</div>
             <div className="text-[10px] text-muted-foreground">{def.label}</div>
           </div>
+          {/* Validation badge */}
+          {(hasError || hasWarning) && (
+            <div
+              className={cn(
+                "w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0",
+                hasError
+                  ? "bg-red-500 text-white"
+                  : "bg-yellow-400 text-yellow-900"
+              )}
+              title={hasError ? "Erro de validação" : "Aviso de validação"}
+            >
+              {hasError ? "!" : "⚠"}
+            </div>
+          )}
         </div>
 
         {/* Layer-specific overlay */}

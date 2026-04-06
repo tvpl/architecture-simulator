@@ -3,7 +3,7 @@
  * FlowCanvas — main canvas component.
  * Connects @xyflow/react with Zustand stores and the registry-driven node/edge types.
  */
-import React, { useCallback, useRef, useMemo } from "react";
+import React, { useCallback, useEffect, useRef, useMemo } from "react";
 import {
   ReactFlow,
   Background,
@@ -11,6 +11,7 @@ import {
   MiniMap,
   BackgroundVariant,
   type XYPosition,
+  useReactFlow,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
@@ -23,6 +24,8 @@ import type { AWSServiceType } from "@/domain/entities/node";
 import { ServiceNode } from "@/components/nodes/base/ServiceNode";
 import { ContainerNode } from "@/components/nodes/base/ContainerNode";
 import { ProtocolEdge } from "@/components/edges/ProtocolEdge";
+import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
+import { useAutoLayout } from "@/hooks/use-auto-layout";
 
 // ── Static node/edge type registries (stable references) ─────────────────────
 
@@ -35,12 +38,46 @@ const edgeTypes = {
   "protocol-edge": ProtocolEdge,
 } as const;
 
+// ── CanvasEffects — inner component inside ReactFlow context ──────────────────
+// Must live INSIDE <ReactFlow> so it can use useReactFlow().
+
+function CanvasEffects() {
+  const { fitView } = useReactFlow();
+  const { applyLayout } = useAutoLayout();
+  const autoLayoutPending = useUIStore((s) => s.autoLayoutPending);
+  const autoLayoutDirection = useUIStore((s) => s.autoLayoutDirection);
+  const clearAutoLayout = useUIStore((s) => s.clearAutoLayout);
+  const presentationMode = useUIStore((s) => s.presentationMode);
+  const prevPresentationMode = useRef(presentationMode);
+
+  useKeyboardShortcuts();
+
+  // Trigger Dagre layout when requested
+  useEffect(() => {
+    if (autoLayoutPending) {
+      applyLayout(autoLayoutDirection);
+      clearAutoLayout();
+    }
+  }, [autoLayoutPending, autoLayoutDirection, applyLayout, clearAutoLayout]);
+
+  // Fit view when entering presentation mode
+  useEffect(() => {
+    if (presentationMode && !prevPresentationMode.current) {
+      setTimeout(() => fitView({ duration: 400, padding: 0.15 }), 100);
+    }
+    prevPresentationMode.current = presentationMode;
+  }, [presentationMode, fitView]);
+
+  return null;
+}
+
 // ── Canvas ────────────────────────────────────────────────────────────────────
 
 export function FlowCanvas() {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const activeLayer = useLayerStore((s) => s.activeLayer);
   const simStatus = useSimulationStore((s) => s.status);
+  const snapToGrid = useUIStore((s) => s.snapToGrid);
 
   const {
     nodes,
@@ -105,7 +142,7 @@ export function FlowCanvas() {
     clearSelection();
   }, [clearSelection]);
 
-  // ── Animated edges (simulation layer) ───────────────────────────────────
+  // ── Animated edges (layer-aware) ─────────────────────────────────────────
 
   const animatedEdges = useMemo(
     () =>
@@ -163,6 +200,8 @@ export function FlowCanvas() {
         onPaneClick={onPaneClick}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
+        snapToGrid={snapToGrid}
+        snapGrid={[16, 16]}
         fitView
         fitViewOptions={{ padding: 0.2 }}
         minZoom={0.2}
@@ -172,7 +211,7 @@ export function FlowCanvas() {
       >
         <Background
           variant={BackgroundVariant.Dots}
-          gap={20}
+          gap={snapToGrid ? 16 : 20}
           size={1}
           className="bg-muted/20"
         />
@@ -188,6 +227,9 @@ export function FlowCanvas() {
           zoomable
           pannable
         />
+
+        {/* Inner effects component — requires ReactFlow context */}
+        <CanvasEffects />
 
         {/* Empty state */}
         {nodes.length === 0 && (

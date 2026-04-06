@@ -2,9 +2,12 @@
 /**
  * Flow Store — canonical source of truth for nodes and edges on the canvas.
  * Wraps @xyflow/react state management with domain-aware CRUD operations.
+ * Includes undo/redo via zundo temporal middleware.
  */
-import { create } from "zustand";
+import { create, useStore } from "zustand";
 import { subscribeWithSelector, persist } from "zustand/middleware";
+import { temporal } from "zundo";
+import type { TemporalState } from "zundo";
 import {
   applyNodeChanges,
   applyEdgeChanges,
@@ -76,9 +79,10 @@ interface FlowState {
 let nodeCounter = 0;
 
 export const useFlowStore = create<FlowState>()(
-  subscribeWithSelector(
-    persist(
-      (set, get) => ({
+  temporal(
+    subscribeWithSelector(
+      persist(
+        (set, get) => ({
     nodes: [],
     edges: [],
     projectName: "Minha Arquitetura",
@@ -272,17 +276,33 @@ export const useFlowStore = create<FlowState>()(
       set({ nodes: [], edges: [] });
     },
       }),
-      {
-        name: "aws-arch-v2",
-        partialize: (state) => ({
-          nodes: state.nodes,
-          edges: state.edges,
-          projectName: state.projectName,
-        }),
-      }
-    )
+        {
+          name: "aws-arch-v2",
+          partialize: (state) => ({
+            nodes: state.nodes,
+            edges: state.edges,
+            projectName: state.projectName,
+          }),
+        }
+      )
+    ),
+    {
+      // Only track nodes and edges in undo/redo history
+      partialize: (state) => ({ nodes: state.nodes, edges: state.edges }),
+      limit: 50,
+    }
   )
 );
+
+// ── Temporal store hook (undo/redo) ───────────────────────────────────────────
+
+export const useTemporalFlowStore = <T>(
+  selector: (state: TemporalState<Pick<FlowState, "nodes" | "edges">>) => T
+): T =>
+  useStore(
+    (useFlowStore as unknown as { temporal: Parameters<typeof useStore>[0] }).temporal,
+    selector as Parameters<typeof useStore>[1]
+  ) as T;
 
 // ── Selectors ─────────────────────────────────────────────────────────────────
 
