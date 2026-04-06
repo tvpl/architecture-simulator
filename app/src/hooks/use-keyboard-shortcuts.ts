@@ -15,7 +15,12 @@ import { useEffect, useRef } from "react";
 import { useFlowStore } from "@/stores/flow-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
-export function useKeyboardShortcuts() {
+interface UseKeyboardShortcutsOptions {
+  onStartRename?: (nodeId: string) => void;
+}
+
+export function useKeyboardShortcuts(options: UseKeyboardShortcutsOptions = {}) {
+  const { onStartRename } = options;
   const clipboardNodeId = useRef<string | null>(null);
 
   useEffect(() => {
@@ -76,6 +81,16 @@ export function useKeyboardShortcuts() {
         return;
       }
 
+      // ── F2: rename selected node ──────────────────────────────────────────
+      if (e.key === "F2" && onStartRename) {
+        const { selectedNodeId } = useSelectionStore.getState();
+        if (selectedNodeId) {
+          e.preventDefault();
+          onStartRename(selectedNodeId);
+        }
+        return;
+      }
+
       // ── Escape: clear selection ───────────────────────────────────────────
       if (e.key === "Escape") {
         useSelectionStore.getState().clearSelection();
@@ -85,5 +100,5 @@ export function useKeyboardShortcuts() {
 
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, []);
+  }, [onStartRename]);
 }

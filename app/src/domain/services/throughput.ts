@@ -96,6 +96,9 @@ export function calculateMaxThroughput(node: ArchitectureNode): number {
       return cfg.type === "express" ? 100_000 : 2000;
     }
 
+    case "note":
+      return 0;
+
     default:
       return 10_000;
   }

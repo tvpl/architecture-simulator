@@ -154,4 +154,8 @@ export const SERVICE_DEFAULTS: ServiceConfigMap = {
     logsIngestGB: 10,
     alarmsCount: 20,
   },
+  note: {
+    content: "Adicione uma anotação aqui...",
+    color: "yellow",
+  },
 };

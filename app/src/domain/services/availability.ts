@@ -35,6 +35,7 @@ const BASE_AVAILABILITY: Record<string, number> = {
   vpc: 100,
   subnet: 100,
   "security-group": 100,
+  note: 100,
 };
 
 export function calculateAvailability(node: ArchitectureNode): number {

@@ -5,7 +5,10 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { FlowCanvas } from "@/components/canvas/FlowCanvas";
 import { PropertiesPanel } from "@/components/panels/PropertiesPanel";
+import { HistoryPanel } from "@/components/panels/HistoryPanel";
 import { SimulationPanel } from "@/components/simulation/SimulationPanel";
+import { ValidationPanel } from "@/components/panels/ValidationPanel";
+import { WhatIfPanel } from "@/components/panels/WhatIfPanel";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { useFlowStore } from "@/stores/flow-store";
 import { useUIStore } from "@/stores/ui-store";
@@ -18,13 +21,11 @@ function HashImporter() {
       const json = decodeURIComponent(atob(hash));
       const data = JSON.parse(json);
       useFlowStore.getState().importProject(data);
-      // Clear hash to avoid re-importing on refresh
       window.history.replaceState(null, "", window.location.pathname);
     } catch {
       // Invalid or malformed hash — silently ignore
     }
   }, []);
-
   return null;
 }
 
@@ -43,7 +44,10 @@ export default function EditorPage() {
               <FlowCanvas />
             </ErrorBoundary>
             {!presentationMode && <PropertiesPanel />}
+            {!presentationMode && <WhatIfPanel />}
+            {!presentationMode && <HistoryPanel />}
             {!presentationMode && <SimulationPanel />}
+            {!presentationMode && <ValidationPanel />}
           </main>
         </div>
       </div>

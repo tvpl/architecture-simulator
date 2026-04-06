@@ -36,6 +36,8 @@ export const AWS_SERVICE_TYPES = [
   // Integration
   "step-functions",
   "cloudwatch",
+  // Annotations
+  "note",
 ] as const;
 
 export type AWSServiceType = (typeof AWS_SERVICE_TYPES)[number];
@@ -47,6 +49,7 @@ export const NODE_CATEGORIES = [
   "storage",
   "security",
   "integration",
+  "annotations",
 ] as const;
 
 export type NodeCategory = (typeof NODE_CATEGORIES)[number];
@@ -231,6 +234,11 @@ export interface CloudWatchConfig {
   alarmsCount: number;
 }
 
+export interface NoteConfig {
+  content: string;
+  color: "yellow" | "blue" | "green" | "pink" | "purple";
+}
+
 // ─── Service Config Map ──────────────────────────────────────────────────────
 
 export interface ServiceConfigMap {
@@ -263,6 +271,7 @@ export interface ServiceConfigMap {
   cognito: CognitoConfig;
   "step-functions": StepFunctionsConfig;
   cloudwatch: CloudWatchConfig;
+  note: NoteConfig;
 }
 
 // ─── Architecture Node ───────────────────────────────────────────────────────
@@ -324,4 +333,5 @@ export const SERVICE_CATEGORY_MAP: Record<AWSServiceType, NodeCategory> = {
   cognito: "security",
   "step-functions": "integration",
   cloudwatch: "integration",
+  note: "annotations",
 };

@@ -1,21 +1,37 @@
-FROM node:20-alpine
+# ── Build stage ──────────────────────────────────────────────────────────────
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Instalar pnpm globalmente
-RUN npm install -g pnpm
+# Copy package files and install dependencies
+COPY app/package*.json ./
+RUN npm ci
 
-# Copiar arquivos de configuração primeiro para aproveitar o cache de camadas
-COPY simulador-arquitetura/package.json simulador-arquitetura/pnpm-lock.yaml ./
+# Copy source and build
+COPY app/ ./
+RUN npm run build
 
-# Instalar dependências
-RUN pnpm install
+# ── Production stage ──────────────────────────────────────────────────────────
+FROM node:20-alpine AS runner
 
-# Copiar o restante dos arquivos do projeto
-COPY simulador-arquitetura/ ./
+WORKDIR /app
 
-# Expor a porta que o Vite usa por padrão
-EXPOSE 5173
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
 
-# Comando para iniciar o servidor de desenvolvimento
-CMD ["pnpm", "run", "dev", "--host", "0.0.0.0"]
+# Create non-root user
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+# Copy built output
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+USER nextjs
+
+EXPOSE 3000
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+CMD ["node", "server.js"]

@@ -11,6 +11,7 @@ import "./messaging/index";
 import "./storage/index";
 import "./security/index";
 import "./integration/index";
+import "./annotations/index";
 
 // Re-export the populated registry
 export { registry } from "./index-internal";

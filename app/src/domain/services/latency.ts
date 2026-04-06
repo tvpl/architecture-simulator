@@ -40,6 +40,7 @@ const BASE_LATENCY_MS: Record<AWSServiceType, number> = {
   cognito: 50,
   "step-functions": 100,
   cloudwatch: 0,
+  note: 0,
 };
 
 export function getBaseLatency(type: AWSServiceType): number {

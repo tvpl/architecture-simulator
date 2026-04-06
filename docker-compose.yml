@@ -1,22 +1,36 @@
-version: '3.8'
+version: "3.8"
 
 services:
-  simulador:
+  app:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: simulador-arquitetura
+    container_name: aws-architecture-simulator
     ports:
-      - "5173:5173"
-    # Volumes removidos para garantir que o código copiado no Dockerfile seja usado
-    # Isso evita o erro ENOENT quando os arquivos não existem no host
+      - "3000:3000"
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
+      - NEXT_TELEMETRY_DISABLED=1
     restart: unless-stopped
-    # Healthcheck para garantir que o serviço está funcionando
     healthcheck:
-      test: ["CMD", "wget", "--spider", "http://localhost:5173"]
-      interval: 10s
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000"]
+      interval: 15s
       timeout: 5s
       retries: 3
-      start_period: 15s
+      start_period: 20s
+
+  # Development service (hot-reload)
+  dev:
+    image: node:20-alpine
+    container_name: aws-arch-dev
+    working_dir: /app
+    volumes:
+      - ./app:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    command: sh -c "npm install && npm run dev"
+    environment:
+      - NODE_ENV=development
+    profiles:
+      - dev

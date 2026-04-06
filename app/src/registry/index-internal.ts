@@ -16,6 +16,7 @@ const CATEGORY_LABELS: Record<NodeCategory, string> = {
   storage: "Armazenamento",
   security: "Segurança",
   integration: "Integração",
+  annotations: "Anotações",
 };
 
 const CATEGORY_ORDER: NodeCategory[] = [
@@ -25,6 +26,7 @@ const CATEGORY_ORDER: NodeCategory[] = [
   "storage",
   "security",
   "integration",
+  "annotations",
 ];
 
 class ServiceRegistry implements IServiceRegistry {

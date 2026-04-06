@@ -1,5 +1,5 @@
 "use client";
-import React, { useRef, useCallback } from "react";
+import React, { useRef, useCallback, useState } from "react";
 import {
   Play,
   Square,
@@ -17,7 +17,13 @@ import {
   Grid3x3,
   Presentation,
   Link,
+  FileCode2,
+  History,
+  LayoutTemplate,
+  ShieldAlert,
+  Calculator,
 } from "lucide-react";
+import { TemplatesDialog } from "@/components/dialogs/TemplatesDialog";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { LayerSwitcher } from "./LayerSwitcher";
@@ -25,6 +31,7 @@ import { useFlowStore, selectDomainNodes, selectDomainEdges, useTemporalFlowStor
 import { useSimulationStore } from "@/stores/simulation-store";
 import { useUIStore } from "@/stores/ui-store";
 import { useThemeStore } from "@/stores/theme-store";
+import { useHistoryStore } from "@/stores/history-store";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
@@ -42,8 +49,15 @@ export function Navbar() {
     presentationMode,
     togglePresentationMode,
     requestAutoLayout,
+    toggleValidationPanel,
+    validationPanelOpen,
+    toggleWhatIfPanel,
+    whatIfPanelOpen,
   } = useUIStore();
+
+  const [templatesOpen, setTemplatesOpen] = useState(false);
   const { theme, toggleTheme } = useThemeStore();
+  const { toggleHistoryPanel } = useHistoryStore();
 
   // ── Undo / Redo ────────────────────────────────────────────────────────
   const canUndo = useTemporalFlowStore((s) => s.pastStates.length > 0);
@@ -156,6 +170,39 @@ export function Navbar() {
       toast.info("Canvas limpo.");
     }
   }, [clearCanvas, reset]);
+
+  // ── Share URL ──────────────────────────────────────────────────────────
+
+  // ── CloudFormation Export ──────────────────────────────────────────────────
+
+  const handleExportCloudFormation = useCallback(async () => {
+    const domainNodes = selectDomainNodes(useFlowStore.getState());
+    const domainEdges = selectDomainEdges(useFlowStore.getState());
+    if (domainNodes.length === 0) {
+      toast.warning("Adicione pelo menos um componente ao diagrama antes de exportar.");
+      return;
+    }
+
+    toast.loading("Gerando template CloudFormation...", { id: "cf" });
+    try {
+      const res = await fetch("/api/export/cloudformation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nodes: domainNodes, edges: domainEdges, projectName }),
+      });
+      const { template } = await res.json();
+      const blob = new Blob([template], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${projectName.replace(/\s+/g, "-").toLowerCase()}-cloudformation.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Template CloudFormation exportado!", { id: "cf" });
+    } catch {
+      toast.error("Erro ao gerar template.", { id: "cf" });
+    }
+  }, [exportProject, projectName]);
 
   // ── Share URL ──────────────────────────────────────────────────────────
 
@@ -367,6 +414,66 @@ export function Navbar() {
             <TooltipContent>Exportar como imagem</TooltipContent>
           </Tooltip>
 
+          {/* Export CloudFormation */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={handleExportCloudFormation}>
+                <FileCode2 className="w-4 h-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Exportar CloudFormation</TooltipContent>
+          </Tooltip>
+
+          {/* Version history */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={toggleHistoryPanel}>
+                <History className="w-4 h-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Histórico de versões</TooltipContent>
+          </Tooltip>
+
+          {/* Templates */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setTemplatesOpen(true)}>
+                <LayoutTemplate className="w-4 h-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Templates de arquitetura</TooltipContent>
+          </Tooltip>
+
+          {/* Validation */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                variant="ghost"
+                className={cn("h-8 w-8", validationPanelOpen && "bg-primary/10 text-primary")}
+                onClick={toggleValidationPanel}
+              >
+                <ShieldAlert className="w-4 h-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Painel de validação</TooltipContent>
+          </Tooltip>
+
+          {/* What-if analysis */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                variant="ghost"
+                className={cn("h-8 w-8", whatIfPanelOpen && "bg-primary/10 text-primary")}
+                onClick={toggleWhatIfPanel}
+              >
+                <Calculator className="w-4 h-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Análise what-if de custos</TooltipContent>
+          </Tooltip>
+
           {/* Dark mode toggle */}
           <Tooltip>
             <TooltipTrigger asChild>
@@ -401,6 +508,8 @@ export function Navbar() {
           />
         </div>
       </nav>
+
+      <TemplatesDialog open={templatesOpen} onClose={() => setTemplatesOpen(false)} />
     </TooltipProvider>
   );
 }

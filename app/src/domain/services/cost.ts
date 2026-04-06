@@ -109,6 +109,8 @@ export function calculateServiceCost(
       return calculateCognitoCost(
         node.config as import("../entities/node").CognitoConfig
       );
+    case "note":
+      return { monthlyCostUSD: 0, details: "Anotação (sem custo)", lineItems: [] };
     default:
       return { monthlyCostUSD: 0, details: "Free or not priced", lineItems: [] };
   }
