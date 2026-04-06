@@ -1,180 +1,150 @@
-# Simulador de Arquiteturas baseadas em Mensageria e Microserviços
+# AWS Architecture Simulator
 
-Este projeto é um simulador visual e funcional que permite modelar e simular arquiteturas baseadas em mensageria (Kafka, RabbitMQ, Service Bus), HTTP, gRPC e microserviços, com foco em visualização de fluxo de mensagens, análise de performance e cálculo de custos.
+Interactive visual tool for designing, simulating, and analyzing AWS cloud architectures. Drag AWS services onto a canvas, connect them, run latency/cost/availability simulations, and export to CloudFormation — all in the browser.
 
-## Características Principais (Versão 5.3)
+---
 
-- **Interface visual interativa** inspirada no Miro, com canvas em tela cheia
-- **Painéis flutuantes** para todos os controles e configurações
-- **Componentes arrastáveis** para criar arquiteturas personalizadas
-- **Configuração detalhada** de cada componente (latência, instâncias, partições, etc.)
-- **Múltiplos protocolos de comunicação**: Kafka, HTTP, gRPC e RabbitMQ
-- **Definição de latência por conexão** para simulações mais precisas (até 10000ms)
-- **Simulação visual** do fluxo de mensagens entre componentes
-- **Componente de início de fluxo** para definir claramente o ponto de partida
-- **Direção nas setas de conexão** para visualizar o caminho do fluxo
-- **Relatório detalhado** com métricas de performance, gargalos e recomendações
-- **Tempo estimado de processamento total** baseado na volumetria e recursos configurados
-- **Cálculo de custo** por componente e arquitetura completa (em R$)
-- **Exportação e importação** de diagramas em formato JSON
-- **Interface clean e responsiva** com controles contextuais
+## Features
 
-## Componentes Suportados
+- **29 AWS services** across 6 categories (Compute, Networking, Messaging, Storage, Security, Integration)
+- **4-layer view system** — Architecture / Services / Cost / Simulation
+- **Simulation engine** — DFS graph traversal, bottleneck detection, latency/throughput/availability per path
+- **Cost calculator** — real AWS pricing formulas per service, with monthly USD breakdown
+- **What-if analysis** — slider-based cost projection without modifying the canvas
+- **CloudFormation export** — generate deployable YAML templates from the diagram
+- **Architecture templates** — 6 pre-built templates (Serverless API, Web App, Microservices ECS, Data Pipeline, Secure App, Event-Driven)
+- **Validation panel** — real-time architecture errors and warnings
+- **Note/annotation nodes** — sticky notes in 5 colors, with inline editing
+- **Context menu** — right-click any node to rename, duplicate, or delete
+- **Inline label editing** — double-click any node or press F2
+- **Version history** — named snapshots with restore, persisted to localStorage
+- **Undo/redo** — full history via zundo temporal store
+- **Auto-layout** — dagre-based automatic node arrangement
+- **Dark/light mode** — persisted to localStorage
+- **JSON export/import** — save and restore complete diagrams
+- **PNG image export** — export canvas as image
+- **Keyboard shortcuts** — Delete, Ctrl+Z/Y, Ctrl+D, Ctrl+Shift+E, F2, Escape
 
-- **Início do Fluxo** (ponto de partida para simulação)
-- **Kafka Cluster** (configurável com brokers, partições e fator de replicação)
-- **RabbitMQ** (configurável com filas e exchanges)
-- **Service Bus** (configurável com filas, tópicos e assinaturas)
-- **Microserviços** (producer, consumer, service)
-- **Function Keda** (serverless com auto-scaling)
-- **Componente Genérico** (personalizável para qualquer serviço)
-- **Azure Storage**:
-  - Blob Storage
-  - Redis Cache
-  - SQL Server
-  - App Configuration
+## Tech Stack
 
-## Executando com Docker (Recomendado)
+| Layer | Technology |
+|-------|------------|
+| Framework | Next.js 16.2 (App Router) + React 19 |
+| Canvas | @xyflow/react v12 (React Flow) |
+| State | Zustand v5 + zundo (temporal/undo-redo) |
+| Styling | Tailwind CSS v4 + shadcn/ui |
+| Animations | Framer Motion v12 |
+| Charts | Recharts v3 |
+| Validation | Zod v4 |
+| Testing | Vitest |
+| Layout algorithm | @dagrejs/dagre |
+| Toasts | Sonner |
 
-A maneira mais fácil de executar o simulador é usando Docker e Docker Compose, sem necessidade de instalar nada localmente além do Docker.
+## Getting Started
 
-### Pré-requisitos
+```bash
+cd app/
+npm install
+npm run dev        # http://localhost:3000
+```
 
-- [Docker](https://docs.docker.com/get-docker/)
-- [Docker Compose](https://docs.docker.com/compose/install/) (geralmente já vem com o Docker Desktop)
+### Other commands
 
-### Passos para Execução
-
-1. **Clone ou descompacte o projeto** em uma pasta local
-
-2. **Navegue até a pasta do projeto**:
-   ```bash
-   cd simulador-arquitetura
-   ```
-
-3. **Inicie o container com Docker Compose**:
-   ```bash
-   docker-compose up
-   ```
-   
-   Na primeira execução, o Docker irá construir a imagem, o que pode levar alguns minutos.
-
-4. **Acesse o simulador** no navegador através do endereço:
-   ```
-   http://localhost:5173
-   ```
-
-5. **Para parar o container**, pressione `Ctrl+C` no terminal ou execute:
-   ```bash
-   docker-compose down
-   ```
-
-### Desenvolvimento com Docker
-
-- O código-fonte na pasta `src` está montado como volume, então as alterações feitas localmente serão refletidas automaticamente no container.
-- Os logs do servidor de desenvolvimento são exibidos no terminal durante a execução.
-
-## Executando Localmente (Alternativa)
-
-Se preferir executar o projeto diretamente na sua máquina:
-
-1. **Instale as dependências**:
-   ```bash
-   pnpm install
-   ```
-
-2. **Inicie o servidor de desenvolvimento**:
-   ```bash
-   pnpm run dev
-   ```
-
-3. **Acesse o simulador** no navegador através do endereço indicado no terminal (geralmente http://localhost:5173)
-
-## Publicação em VPS (Hostinger)
-
-Para publicar o simulador em um ambiente de produção usando um VPS da Hostinger, consulte o guia detalhado em [publicacao-vps-hostinger.md](publicacao-vps-hostinger.md).
-
-Este guia cobre:
-- Contratação e configuração inicial do VPS
-- Instalação de dependências (Docker, Nginx)
-- Configuração de domínio e HTTPS
-- Publicação e manutenção do simulador
-- Backups e solução de problemas
-
-## Como Usar o Simulador
-
-1. **Criar uma arquitetura**:
-   - Abra o painel de Componentes clicando no botão "Componentes" no canto superior esquerdo
-   - Arraste componentes do painel para a área de trabalho
-   - Comece adicionando um componente "Início do Fluxo" para definir o ponto de partida
-   - Conecte os componentes clicando e arrastando entre os pontos de conexão
-   - Configure as propriedades de cada componente no painel de Propriedades
-
-2. **Configurar protocolos e latências**:
-   - Selecione um componente para definir sua latência interna e custo
-   - Selecione uma conexão para definir o protocolo (Kafka, HTTP, gRPC, RabbitMQ) e latência
-   - Para conexões Kafka, defina o nome do tópico
-   - Para conexões RabbitMQ, defina o nome do cluster, exchange e queue
-   - As latências são exibidas visualmente nas conexões com cores indicativas
-   - As setas nas conexões indicam a direção do fluxo de dados
-
-3. **Configurar valores padrão**:
-   - Abra o painel de Configurações Default clicando no botão correspondente
-   - Defina valores padrão para cada tipo de componente
-   - Centralize o controle de custos neste painel
-
-4. **Simular o fluxo**:
-   - Defina a quantidade de requests a serem simulados
-   - Configure o nível de paralelismo desejado
-   - Ajuste a velocidade de animação conforme necessário
-   - Clique em "Iniciar" para executar a simulação
-   - Observe a animação do fluxo de mensagens
-   - Analise o relatório detalhado com métricas de performance e custo
-
-5. **Visualizar resultados**:
-   - Veja a latência total e throughput da arquitetura
-   - Confira o tempo estimado de processamento total baseado na volumetria configurada
-   - Identifique gargalos e pontos de melhoria
-   - Analise o custo total e detalhado por componente (em R$)
-   - Revise as recomendações geradas automaticamente
-
-6. **Exportar/Importar**:
-   - Use os botões no painel de controle para salvar ou carregar arquiteturas
-
-## Novos Recursos (Versão 5.3)
-
-- **Componente de início de fluxo**: Define claramente o ponto de partida da simulação
-- **Direção nas setas de conexão**: Visualize o caminho do fluxo de dados
-- **Controle de paralelismo**: Configure repetições da esteira de serviços em paralelo
-- **Requests em vez de mensagens**: Controle de simulação baseado em requests
-- **Tempo estimado de processamento**: Visualize o tempo total estimado para processar toda a volumetria configurada
-- **Moeda local**: Todos os valores monetários são exibidos em R$ (Reais)
-- **Limite de latência ampliado**: Suporte para latências de até 10000ms
-- **Edição de propriedades aprimorada**: Sistema com botão "Aplicar" para confirmar alterações
-- **Protocolo RabbitMQ**: Suporte completo para conexões RabbitMQ com campos para cluster, exchange e queue
-- **Parametrização por conexão**: Configure a volumetria específica para cada conexão
-- **Layout padronizado**: Componentes com layout visual consistente
-- **Textos reduzidos**: Boxes de configuração com textos mais concisos e legíveis
-- **Renomeação de tipos**: 'Processing' renomeado para 'Service' em todos os componentes
-
-## Solução de Problemas
+```bash
+npm run build      # Production build (must pass with 0 errors)
+npm test           # Run all Vitest unit tests
+npm run lint       # ESLint check
+```
 
 ### Docker
 
-- **Porta 5173 já em uso**: Altere a porta no arquivo `docker-compose.yml` (ex: `"8080:5173"`)
-- **Problemas de permissão**: Execute o Docker com privilégios de administrador
-- **Container não inicia**: Verifique os logs com `docker-compose logs`
+```bash
+docker-compose up                    # Production build on port 3000
+docker-compose --profile dev up      # Dev server with hot reload
+```
 
-### Execução Local
+## Project Structure
 
-- **Dependências não instaladas**: Certifique-se de ter o Node.js v20+ e pnpm instalados
-- **Erros de compilação**: Verifique se todas as dependências foram instaladas corretamente
-- **Porta em uso**: Altere a porta no arquivo `vite.config.ts` ou aceite a porta alternativa oferecida pelo Vite
+```
+app/
+├── src/
+│   ├── app/
+│   │   ├── editor/page.tsx           # Main editor route
+│   │   └── api/
+│   │       ├── simulation/route.ts   # POST — run simulation
+│   │       ├── cost/route.ts         # POST — cost breakdown
+│   │       ├── validate/route.ts     # POST — architecture validation
+│   │       └── export/cloudformation/route.ts  # POST — CF template
+│   ├── domain/                       # Zero React/Next.js imports
+│   │   ├── entities/                 # node.ts, edge.ts
+│   │   ├── services/                 # simulation-engine, cost, latency, throughput, availability, cloudformation
+│   │   ├── validators/               # architecture.ts (Zod)
+│   │   └── constants/               # defaults.ts
+│   ├── registry/                     # AWS service definitions
+│   │   ├── compute/, networking/, messaging/
+│   │   ├── storage/, security/, integration/, annotations/
+│   │   ├── index.ts                  # Public entry with all imports
+│   │   ├── index-internal.ts         # Registry singleton
+│   │   └── types.ts                  # ServiceDefinition, ConfigField
+│   ├── stores/                       # Zustand stores
+│   │   ├── flow-store.ts             # Canvas nodes/edges + undo/redo (zundo)
+│   │   ├── simulation-store.ts       # Simulation results
+│   │   ├── layer-store.ts            # Active layer
+│   │   ├── ui-store.ts               # Panel open/close state
+│   │   ├── theme-store.ts            # light/dark (persisted)
+│   │   ├── validation-store.ts       # Real-time errors/warnings
+│   │   └── history-store.ts          # Named snapshots (persisted)
+│   ├── components/
+│   │   ├── canvas/                   # FlowCanvas, NodeContextMenu
+│   │   ├── nodes/base/               # ServiceNode, NoteNode, ContainerNode
+│   │   ├── panels/                   # PropertiesPanel, SimulationPanel, ValidationPanel, WhatIfPanel, HistoryPanel
+│   │   ├── dialogs/                  # TemplatesDialog
+│   │   └── layout/                   # Navbar, Sidebar, LayerSwitcher
+│   ├── hooks/                        # use-keyboard-shortcuts, use-auto-layout
+│   └── lib/                          # utils, formatters, templates
+├── CLAUDE.md                         # AI developer guide
+└── AGENTS.md                         # Autonomous agent instructions
+```
 
-## Tecnologias Utilizadas
+## Layer System
 
-- React com TypeScript
-- React Flow para diagramas interativos
-- Tailwind CSS e shadcn/ui para interface visual
-- Algoritmos de simulação para cálculo de latência, throughput e custo
-- Docker e Docker Compose para containerização
+| Layer | What it shows |
+|-------|--------------|
+| **Architecture** | All AWS components with icons, VPC/subnet containers, security groups |
+| **Services** | Service-to-service communication, protocol labels on edges |
+| **Cost** | Monthly cost per node, color gradient (green → red by cost) |
+| **Simulation** | Animated edges, bottleneck highlights, latency/throughput overlays |
+
+## Adding a New AWS Service
+
+1. Add the type to `AWS_SERVICE_TYPES` in `src/domain/entities/node.ts`
+2. Create a `MyServiceConfig` interface in `node.ts`
+3. Add `"my-service": MyServiceConfig` to `ServiceConfigMap` in `node.ts`
+4. Add `"my-service": "category"` to `SERVICE_CATEGORY_MAP` in `node.ts`
+5. Add defaults to `SERVICE_DEFAULTS` in `src/domain/constants/defaults.ts`
+6. Create registry entry in `src/registry/<category>/index.ts`
+7. Add `case "my-service":` to `src/domain/services/cost.ts`
+8. Add entry to `BASE_LATENCY_MS` in `src/domain/services/latency.ts`
+9. Add `case "my-service":` to `src/domain/services/throughput.ts`
+10. Add entry to `BASE_AVAILABILITY` in `src/domain/services/availability.ts`
+11. Add `case "my-service":` to `src/domain/services/cloudformation.ts`
+
+## API Routes
+
+| Route | Method | Description |
+|-------|--------|-------------|
+| `/api/simulation` | POST | Run simulation on diagram nodes/edges |
+| `/api/cost` | POST | Get cost breakdown per service |
+| `/api/validate` | POST | Validate architecture rules |
+| `/api/export/cloudformation` | POST | Generate CloudFormation YAML |
+
+## CI/CD
+
+GitHub Actions (`.github/workflows/ci.yml`) runs on every push/PR to `main`:
+- **build** — `npm run build` (TypeScript + Next.js)
+- **test** — `npm test` (Vitest)
+- **lint** — `npm run lint` (ESLint)
+
+## License
+
+MIT
