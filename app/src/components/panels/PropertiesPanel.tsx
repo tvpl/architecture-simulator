@@ -3,7 +3,7 @@
  * PropertiesPanel — config panel for the selected node or edge.
  * Renders fields from the ServiceDefinition.configSections dynamically.
  */
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { X, Trash2, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -43,6 +43,7 @@ export function PropertiesPanel() {
     >
       {selectedNodeId && (
         <NodePropertiesContent
+          key={selectedNodeId}
           nodeId={selectedNodeId}
           nodes={nodes}
           onUpdate={updateNodeData}
@@ -88,24 +89,13 @@ function NodePropertiesContent({
   onClose: () => void;
 }) {
   const flowNode = nodes.find((n) => n.id === nodeId);
-  if (!flowNode) return null;
+  const data = flowNode?.data;
+  const def = data ? registry.get(data.type) : undefined;
 
-  const data = flowNode.data;
-  const def = registry.get(data.type);
-
-  const [label, setLabel] = useState(data.label);
+  const [label, setLabel] = useState(data?.label ?? "");
   const [localConfig, setLocalConfig] = useState<Record<string, unknown>>(
-    data.config as unknown as Record<string, unknown>
+    (data?.config as unknown as Record<string, unknown>) ?? {}
   );
-
-  useEffect(() => {
-    setLabel(data.label);
-    setLocalConfig(data.config as unknown as Record<string, unknown>);
-  }, [nodeId, data.label, data.config]);
-
-  const applyLabel = () => {
-    if (label !== data.label) onUpdate(nodeId, { label });
-  };
 
   const handleConfigChange = useCallback(
     (key: string, value: unknown) => {
@@ -115,6 +105,12 @@ function NodePropertiesContent({
     },
     [localConfig, nodeId, onUpdateConfig]
   );
+
+  if (!flowNode || !data) return null;
+
+  const applyLabel = () => {
+    if (label !== data.label) onUpdate(nodeId, { label });
+  };
 
   return (
     <>

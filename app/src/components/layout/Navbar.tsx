@@ -202,7 +202,7 @@ export function Navbar() {
     } catch {
       toast.error("Erro ao gerar template.", { id: "cf" });
     }
-  }, [exportProject, projectName]);
+  }, [projectName]);
 
   // ── Share URL ──────────────────────────────────────────────────────────
 

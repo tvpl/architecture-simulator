@@ -34,13 +34,9 @@ export function calculateServiceCost(
         node.config as import("../entities/node").EKSConfig
       );
     case "alb":
-      return calculateALBCost(
-        node.config as import("../entities/node").ALBConfig
-      );
+      return calculateALBCost();
     case "nlb":
-      return calculateNLBCost(
-        node.config as import("../entities/node").NLBConfig
-      );
+      return calculateNLBCost();
     case "api-gateway":
       return calculateAPIGatewayCost(
         node.config as import("../entities/node").APIGatewayConfig
@@ -249,9 +245,7 @@ function calculateEKSCost(
   };
 }
 
-function calculateALBCost(
-  _cfg: import("../entities/node").ALBConfig
-): ServiceCostResult {
+function calculateALBCost(): ServiceCostResult {
   // $0.008/hour + $0.008/LCU
   const fixedCost = 0.008 * 730;
   const lcuCost = 10 * 0.008; // estimated 10 LCUs
@@ -265,9 +259,7 @@ function calculateALBCost(
   };
 }
 
-function calculateNLBCost(
-  _cfg: import("../entities/node").NLBConfig
-): ServiceCostResult {
+function calculateNLBCost(): ServiceCostResult {
   const fixedCost = 0.008 * 730;
   const lcuCost = 10 * 0.006;
   return {

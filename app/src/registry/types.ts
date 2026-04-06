@@ -3,7 +3,6 @@
  * Registering a service makes it available in the sidebar, canvas, config panels,
  * cost calculator, and simulation engine automatically.
  */
-import type React from "react";
 import type { NodeCategory, AWSServiceType } from "@/domain/entities/node";
 import type { ConnectionProtocol } from "@/domain/entities/edge";
 

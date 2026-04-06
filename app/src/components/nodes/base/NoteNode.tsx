@@ -4,7 +4,7 @@
  * Supports color variants and inline text editing.
  * Unlike ServiceNode, it has no layer-specific overlays.
  */
-import React, { memo, useState, useRef, useEffect } from "react";
+import React, { memo, useState, useRef, useEffect, useCallback } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { cn } from "@/lib/utils";
 import { useFlowStore } from "@/stores/flow-store";
@@ -45,18 +45,15 @@ const NoteNode = memo(function NoteNode({ data, selected }: NodeProps<FlowNode>)
   const styles = COLOR_STYLES[color] ?? COLOR_STYLES.yellow;
 
   const [isEditing, setIsEditing] = useState(false);
-  const [draft, setDraft] = useState(config?.content ?? "");
+  const [draft, setDraft] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const updateNodeConfig = useFlowStore((s) => s.updateNodeConfig);
 
-  useEffect(() => {
-    setDraft(config?.content ?? "");
-  }, [config?.content]);
-
-  const handleDoubleClick = (e: React.MouseEvent) => {
+  const handleDoubleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
+    setDraft(config?.content ?? "");
     setIsEditing(true);
-  };
+  }, [config?.content]);
 
   const handleBlur = () => {
     setIsEditing(false);

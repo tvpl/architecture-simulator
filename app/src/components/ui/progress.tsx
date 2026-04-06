@@ -1,6 +1,5 @@
 "use client";
 import * as React from "react";
-import * as ProgressPrimitive from "@radix-ui/react-accordion";
 import { cn } from "@/lib/utils";
 
 interface ProgressProps extends React.HTMLAttributes<HTMLDivElement> {
