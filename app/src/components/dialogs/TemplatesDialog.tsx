@@ -107,9 +107,9 @@ export function TemplatesDialog({ open, onClose }: TemplatesDialogProps) {
 
                 {/* Stats */}
                 <div className="flex items-center gap-3 text-[10px] text-muted-foreground mb-3">
-                  <span>{template.data.nodes.length} serviços</span>
+                  <span>{template.data.infrastructure.nodes.length} serviços</span>
                   <span>·</span>
-                  <span>{template.data.edges.length} conexões</span>
+                  <span>{template.data.infrastructure.edges.length} conexões</span>
                 </div>
 
                 {/* Tags */}

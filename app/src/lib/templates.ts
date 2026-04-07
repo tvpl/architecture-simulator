@@ -14,6 +14,17 @@ export interface ArchitectureTemplate {
   data: ProjectData;
 }
 
+/** Wraps V2-style flat nodes/edges into V3 ProjectData format */
+function toV3(name: string, nodes: FlowNode[], edges: FlowEdge[]): ProjectData {
+  return {
+    version: 3,
+    name,
+    infrastructure: { nodes, edges },
+    solutionDesign: { nodes: [], edges: [] },
+    savedAt: ts(),
+  };
+}
+
 const ts = () => new Date().toISOString();
 
 // ── Template helpers ──────────────────────────────────────────────────────────
@@ -66,11 +77,7 @@ const serverlessApi: ArchitectureTemplate = {
   category: "serverless",
   tags: ["serverless", "api", "lambda", "dynamodb"],
   estimatedCostUSD: 12,
-  data: {
-    version: 2,
-    name: "API Serverless",
-    savedAt: ts(),
-    nodes: [
+  data: toV3("API Serverless", [
       node("waf-1", "waf", "WAF", 380, 40, { rulesCount: 5, requestsPerMonth: 1_000_000 }),
       node("apigw-1", "api-gateway", "API Gateway", 380, 160, { type: "rest", requestsPerMonth: 1_000_000, cacheSizeGB: 0, throttleRPS: 5000 }),
       node("fn-1", "lambda", "Função de Negócio", 220, 310, { memoryMB: 512, timeoutSec: 30, concurrency: 0, requestsPerMonth: 1_000_000, avgDurationMs: 150 }),
@@ -78,16 +85,14 @@ const serverlessApi: ArchitectureTemplate = {
       node("db-1", "dynamodb", "Tabela Principal", 220, 460, { readCapacityUnits: 10, writeCapacityUnits: 5, capacityMode: "on-demand", storageGB: 10 }),
       node("cache-1", "elasticache", "Cache Redis", 540, 460, { engine: "redis", nodeType: "cache.t3.micro", nodeCount: 1, replicationEnabled: false }),
       node("cw-1", "cloudwatch", "Monitoramento", 380, 560, { metricsCount: 20, logsIngestGB: 5, alarmsCount: 5 }),
-    ],
-    edges: [
+    ], [
       edge("waf-1", "apigw-1"),
       edge("apigw-1", "fn-auth"),
       edge("apigw-1", "fn-1"),
       edge("fn-1", "db-1"),
       edge("fn-1", "cache-1"),
       edge("fn-1", "cw-1"),
-    ],
-  },
+    ]),
 };
 
 // ── 2. Web App com ALB ────────────────────────────────────────────────────────
@@ -99,11 +104,7 @@ const webApp: ArchitectureTemplate = {
   category: "containers",
   tags: ["web", "alb", "ec2", "rds", "cloudfront"],
   estimatedCostUSD: 380,
-  data: {
-    version: 2,
-    name: "Web App com Load Balancer",
-    savedAt: ts(),
-    nodes: [
+  data: toV3("Web App com Load Balancer", [
       node("waf-1", "waf", "WAF", 420, 30, { rulesCount: 10, requestsPerMonth: 5_000_000 }),
       node("cf-1", "cloudfront", "CloudFront CDN", 420, 130, { priceClass: "PriceClass_200", requestsPerMonth: 5_000_000, dataTransferGB: 100 }),
       node("r53-1", "route53", "Route 53", 160, 130, { hostedZones: 1, queriesPerMonth: 1_000_000 }),
@@ -113,8 +114,7 @@ const webApp: ArchitectureTemplate = {
       node("rds-1", "rds", "RDS PostgreSQL", 420, 550, { engine: "postgres", instanceClass: "db.t3.medium", multiAZ: true, storageGB: 100, readReplicas: 1 }),
       node("sm-1", "secrets-manager", "Secrets Manager", 700, 550, { secretsCount: 5, rotationEnabled: true }),
       node("cw-1", "cloudwatch", "CloudWatch", 160, 550, { metricsCount: 50, logsIngestGB: 20, alarmsCount: 15 }),
-    ],
-    edges: [
+    ], [
       edge("r53-1", "cf-1"),
       edge("waf-1", "cf-1"),
       edge("cf-1", "alb-1"),
@@ -124,8 +124,7 @@ const webApp: ArchitectureTemplate = {
       edge("ec2-b", "rds-1"),
       edge("ec2-a", "sm-1"),
       edge("ec2-a", "cw-1"),
-    ],
-  },
+    ]),
 };
 
 // ── 3. Microsserviços com ECS ─────────────────────────────────────────────────
@@ -137,11 +136,7 @@ const microservices: ArchitectureTemplate = {
   category: "microservices",
   tags: ["microservices", "ecs", "fargate", "sqs", "sns"],
   estimatedCostUSD: 520,
-  data: {
-    version: 2,
-    name: "Microsserviços com ECS",
-    savedAt: ts(),
-    nodes: [
+  data: toV3("Microsserviços com ECS", [
       node("apigw-1", "api-gateway", "API Gateway", 420, 40, { type: "rest", requestsPerMonth: 2_000_000, cacheSizeGB: 0, throttleRPS: 10000 }),
       node("ecs-orders", "ecs", "Serviço Pedidos", 180, 180, { taskCount: 3, cpu: 512, memoryMB: 1024, launchType: "fargate" }),
       node("ecs-users", "ecs", "Serviço Usuários", 420, 180, { taskCount: 2, cpu: 256, memoryMB: 512, launchType: "fargate" }),
@@ -152,8 +147,7 @@ const microservices: ArchitectureTemplate = {
       node("db-users", "dynamodb", "DB Usuários", 300, 480, { readCapacityUnits: 10, writeCapacityUnits: 5, capacityMode: "on-demand", storageGB: 10 }),
       node("cognito-1", "cognito", "Cognito User Pool", 660, 480, { userPoolSize: 50_000, mfaEnabled: true }),
       node("cw-1", "cloudwatch", "CloudWatch", 420, 580, { metricsCount: 80, logsIngestGB: 30, alarmsCount: 20 }),
-    ],
-    edges: [
+    ], [
       edge("apigw-1", "ecs-orders"),
       edge("apigw-1", "ecs-users"),
       edge("apigw-1", "ecs-notify"),
@@ -164,8 +158,7 @@ const microservices: ArchitectureTemplate = {
       edge("ecs-users", "cognito-1"),
       edge("sns-events", "ecs-notify", "sns"),
       edge("ecs-orders", "cw-1"),
-    ],
-  },
+    ]),
 };
 
 // ── 4. Pipeline de Dados ──────────────────────────────────────────────────────
@@ -177,11 +170,7 @@ const dataPipeline: ArchitectureTemplate = {
   category: "data",
   tags: ["kinesis", "lambda", "s3", "data", "streaming"],
   estimatedCostUSD: 185,
-  data: {
-    version: 2,
-    name: "Pipeline de Dados em Tempo Real",
-    savedAt: ts(),
-    nodes: [
+  data: toV3("Pipeline de Dados em Tempo Real", [
       node("kinesis-1", "kinesis", "Kinesis Stream", 400, 60, { shardCount: 4, retentionHours: 24, dataInGB: 50 }),
       node("fn-process", "lambda", "Processador", 220, 200, { memoryMB: 1024, timeoutSec: 60, concurrency: 100, requestsPerMonth: 10_000_000, avgDurationMs: 200 }),
       node("fn-enrich", "lambda", "Enriquecedor", 580, 200, { memoryMB: 512, timeoutSec: 30, concurrency: 50, requestsPerMonth: 5_000_000, avgDurationMs: 100 }),
@@ -190,8 +179,7 @@ const dataPipeline: ArchitectureTemplate = {
       node("s3-archive", "s3", "S3 Arquivo", 680, 360, { storageClass: "GLACIER", storageSizeGB: 2000, requestsPerMonth: 10_000 }),
       node("sns-alerts", "sns", "Alertas SNS", 400, 500, { type: "standard", subscriptions: 5, messagesPerMonth: 100_000 }),
       node("cw-1", "cloudwatch", "Monitoramento", 160, 500, { metricsCount: 40, logsIngestGB: 50, alarmsCount: 10 }),
-    ],
-    edges: [
+    ], [
       edge("kinesis-1", "fn-process", "kinesis"),
       edge("kinesis-1", "fn-enrich", "kinesis"),
       edge("fn-process", "s3-raw"),
@@ -200,8 +188,7 @@ const dataPipeline: ArchitectureTemplate = {
       edge("fn-enrich", "s3-archive"),
       edge("fn-process", "cw-1"),
       edge("fn-process", "sns-alerts"),
-    ],
-  },
+    ]),
 };
 
 // ── 5. Arquitetura Segura com WAF ─────────────────────────────────────────────
@@ -213,11 +200,7 @@ const secureArchitecture: ArchitectureTemplate = {
   category: "security",
   tags: ["security", "waf", "cloudfront", "ecs", "rds", "cognito"],
   estimatedCostUSD: 650,
-  data: {
-    version: 2,
-    name: "Aplicação Web Segura",
-    savedAt: ts(),
-    nodes: [
+  data: toV3("Aplicação Web Segura", [
       node("route53-1", "route53", "Route 53", 100, 80, { hostedZones: 1, queriesPerMonth: 2_000_000 }),
       node("waf-1", "waf", "AWS WAF", 420, 40, { rulesCount: 15, requestsPerMonth: 3_000_000 }),
       node("cf-1", "cloudfront", "CloudFront", 420, 150, { priceClass: "PriceClass_All", requestsPerMonth: 3_000_000, dataTransferGB: 200 }),
@@ -229,8 +212,7 @@ const secureArchitecture: ArchitectureTemplate = {
       node("sm-1", "secrets-manager", "Secrets Manager", 560, 560, { secretsCount: 10, rotationEnabled: true }),
       node("iam-1", "iam", "IAM Roles", 780, 420, { roleName: "ECSTaskRole", policies: ["AmazonDynamoDBFullAccess", "AmazonS3ReadOnlyAccess"] }),
       node("cw-1", "cloudwatch", "CloudWatch", 100, 560, { metricsCount: 100, logsIngestGB: 40, alarmsCount: 25 }),
-    ],
-    edges: [
+    ], [
       edge("route53-1", "cf-1"),
       edge("waf-1", "cf-1"),
       edge("cf-1", "cognito-1"),
@@ -241,8 +223,7 @@ const secureArchitecture: ArchitectureTemplate = {
       edge("ecs-1", "sm-1"),
       edge("ecs-2", "sm-1"),
       edge("ecs-1", "cw-1"),
-    ],
-  },
+    ]),
 };
 
 // ── 6. Event-Driven com Step Functions ────────────────────────────────────────
@@ -254,11 +235,7 @@ const eventDriven: ArchitectureTemplate = {
   category: "serverless",
   tags: ["event-driven", "step-functions", "eventbridge", "sqs", "lambda"],
   estimatedCostUSD: 95,
-  data: {
-    version: 2,
-    name: "Arquitetura Event-Driven",
-    savedAt: ts(),
-    nodes: [
+  data: toV3("Arquitetura Event-Driven", [
       node("apigw-1", "api-gateway", "API Gateway", 400, 40, { type: "rest", requestsPerMonth: 500_000, cacheSizeGB: 0, throttleRPS: 2000 }),
       node("sf-1", "step-functions", "Orquestrador", 400, 180, { type: "standard", transitionsPerMonth: 500_000 }),
       node("eb-1", "eventbridge", "EventBridge", 200, 320, { rulesCount: 8, eventsPerMonth: 1_000_000 }),
@@ -268,8 +245,7 @@ const eventDriven: ArchitectureTemplate = {
       node("fn-2", "lambda", "Processador B", 400, 470, { memoryMB: 512, timeoutSec: 60, concurrency: 30, requestsPerMonth: 300_000, avgDurationMs: 400 }),
       node("db-1", "dynamodb", "Estado Workflow", 280, 610, { readCapacityUnits: 5, writeCapacityUnits: 5, capacityMode: "on-demand", storageGB: 5 }),
       node("sns-1", "sns", "Notificações", 560, 470, { type: "standard", subscriptions: 3, messagesPerMonth: 200_000 }),
-    ],
-    edges: [
+    ], [
       edge("apigw-1", "sf-1"),
       edge("sf-1", "eb-1"),
       edge("sf-1", "sqs-1"),
@@ -279,8 +255,7 @@ const eventDriven: ArchitectureTemplate = {
       edge("fn-1", "db-1"),
       edge("fn-2", "db-1"),
       edge("fn-2", "sns-1"),
-    ],
-  },
+    ]),
 };
 
 // ── Exports ───────────────────────────────────────────────────────────────────

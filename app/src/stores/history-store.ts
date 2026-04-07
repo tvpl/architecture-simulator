@@ -2,7 +2,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { useFlowStore } from "@/stores/flow-store";
-import type { FlowNode, FlowEdge } from "@/stores/flow-store";
+import type { FlowNode, FlowEdge, AppFlowNode } from "@/stores/flow-store";
 
 // ── Snapshot type ─────────────────────────────────────────────────────────────
 
@@ -15,6 +15,9 @@ export interface Snapshot {
   timestamp: string; // ISO
   nodes: FlowNode[];
   edges: FlowEdge[];
+  /** Layer 2 data (optional for backward compat with old snapshots) */
+  solutionNodes?: AppFlowNode[];
+  solutionEdges?: FlowEdge[];
 }
 
 const MAX_SNAPSHOTS = 20;
@@ -60,6 +63,8 @@ export const useHistoryStore = create<HistoryStore>()(
           timestamp: new Date().toISOString(),
           nodes: flowState.nodes,
           edges: flowState.edges,
+          solutionNodes: flowState.solutionNodes,
+          solutionEdges: flowState.solutionEdges,
         };
 
         set((state) => ({
@@ -71,11 +76,18 @@ export const useHistoryStore = create<HistoryStore>()(
         const snap = get().snapshots.find((s) => s.id === id);
         if (!snap) return;
 
+        // Use V3 import which handles both formats
         useFlowStore.getState().importProject({
-          version: 2,
+          version: 3,
           name: snap.projectName,
-          nodes: snap.nodes,
-          edges: snap.edges,
+          infrastructure: {
+            nodes: snap.nodes,
+            edges: snap.edges,
+          },
+          solutionDesign: {
+            nodes: snap.solutionNodes ?? [],
+            edges: snap.solutionEdges ?? [],
+          },
           savedAt: snap.timestamp,
         });
       },
