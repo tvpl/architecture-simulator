@@ -6,14 +6,16 @@
 import React, { useMemo } from "react";
 import { DollarSign, TrendingUp, BarChart3, PieChart } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useFlowStore, selectDomainNodes } from "@/stores/flow-store";
-import { calculateServiceCost } from "@/domain/services/cost";
+import { useFlowStore, selectDomainNodes, selectSolutionDomainNodes } from "@/stores/flow-store";
+import { calculateServiceCost, estimateAppComponentCost } from "@/domain/services/cost";
 import { formatUSD } from "@/lib/formatters";
 import { registry } from "@/registry";
+import { appComponentRegistry } from "@/registry/app-components";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 export function CostDashboard() {
   const domainNodes = useFlowStore(selectDomainNodes);
+  const appNodes = useFlowStore(selectSolutionDomainNodes);
 
   const serviceCosts = useMemo(
     () =>
@@ -36,7 +38,30 @@ export function CostDashboard() {
     [domainNodes]
   );
 
-  const totalMonthlyCost = serviceCosts.reduce((sum, s) => sum + s.monthlyCost, 0);
+  const appCosts = useMemo(
+    () =>
+      appNodes
+        .map((node) => {
+          const cost = estimateAppComponentCost(node);
+          const def = appComponentRegistry.get(node.type);
+          return {
+            id: node.id,
+            label: node.label,
+            type: node.type,
+            typeName: def?.label ?? node.type,
+            color: def?.color ?? "text-muted-foreground",
+            bgColor: def?.bgColor ?? "bg-muted",
+            monthlyCost: cost.monthlyCostUSD,
+            details: cost.details,
+            isAppComponent: true,
+          };
+        })
+        .sort((a, b) => b.monthlyCost - a.monthlyCost),
+    [appNodes]
+  );
+
+  const totalMonthlyCost = serviceCosts.reduce((sum, s) => sum + s.monthlyCost, 0)
+    + appCosts.reduce((sum, s) => sum + s.monthlyCost, 0);
   const annualProjection = totalMonthlyCost * 12;
 
   // Group by category
@@ -122,41 +147,59 @@ export function CostDashboard() {
           </div>
         </div>
 
-        {/* Service-level breakdown table */}
+        {/* Infrastructure cost breakdown */}
         <div className="bg-card border border-border rounded-xl overflow-hidden">
           <div className="px-4 py-3 border-b border-border">
-            <h3 className="text-sm font-semibold">Detalhamento por Serviço</h3>
+            <h3 className="text-sm font-semibold">Infraestrutura (Layer 1)</h3>
           </div>
           <div className="divide-y divide-border">
             {serviceCosts.map((s) => (
-              <div
-                key={s.id}
-                className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors"
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-medium truncate">{s.label}</div>
-                  <div className="text-[10px] text-muted-foreground">{s.typeName}</div>
-                </div>
-                <div className="text-right">
-                  <div
-                    className={cn(
-                      "text-xs font-semibold",
-                      s.monthlyCost > 500
-                        ? "text-red-600 dark:text-red-400"
-                        : s.monthlyCost > 100
-                        ? "text-yellow-600 dark:text-yellow-400"
-                        : "text-green-600 dark:text-green-400"
-                    )}
-                  >
-                    {formatUSD(s.monthlyCost)}/mês
-                  </div>
-                </div>
-              </div>
+              <CostRow key={s.id} label={s.label} typeName={s.typeName} cost={s.monthlyCost} />
             ))}
           </div>
         </div>
+
+        {/* App component cost breakdown */}
+        {appCosts.length > 0 && (
+          <div className="bg-card border border-border rounded-xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-border">
+              <h3 className="text-sm font-semibold">Componentes de Solução (Layer 2)</h3>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Estimativa de consumo de recursos nos hosts</p>
+            </div>
+            <div className="divide-y divide-border">
+              {appCosts.map((s) => (
+                <CostRow key={s.id} label={s.label} typeName={s.typeName} cost={s.monthlyCost} />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </ScrollArea>
+  );
+}
+
+function CostRow({ label, typeName, cost }: { label: string; typeName: string; cost: number }) {
+  return (
+    <div className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors">
+      <div className="flex-1 min-w-0">
+        <div className="text-xs font-medium truncate">{label}</div>
+        <div className="text-[10px] text-muted-foreground">{typeName}</div>
+      </div>
+      <div className="text-right">
+        <div
+          className={cn(
+            "text-xs font-semibold",
+            cost > 500
+              ? "text-red-600 dark:text-red-400"
+              : cost > 100
+              ? "text-yellow-600 dark:text-yellow-400"
+              : "text-green-600 dark:text-green-400"
+          )}
+        >
+          {formatUSD(cost)}/mês
+        </div>
+      </div>
+    </div>
   );
 }
 

@@ -25,6 +25,7 @@ const CATEGORY_COLORS: Record<ArchitectureTemplate["category"], string> = {
   data: "bg-purple-100 text-purple-700 dark:bg-purple-950/30 dark:text-purple-400",
   security: "bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400",
   microservices: "bg-teal-100 text-teal-700 dark:bg-teal-950/30 dark:text-teal-400",
+  "full-stack": "bg-indigo-100 text-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-400",
 };
 
 export function TemplatesDialog({ open, onClose }: TemplatesDialogProps) {
@@ -110,6 +111,14 @@ export function TemplatesDialog({ open, onClose }: TemplatesDialogProps) {
                   <span>{template.data.infrastructure.nodes.length} serviços</span>
                   <span>·</span>
                   <span>{template.data.infrastructure.edges.length} conexões</span>
+                  {template.data.solutionDesign.nodes.length > 0 && (
+                    <>
+                      <span>·</span>
+                      <span className="text-indigo-600 dark:text-indigo-400">
+                        {template.data.solutionDesign.nodes.length} componentes L2
+                      </span>
+                    </>
+                  )}
                 </div>
 
                 {/* Tags */}

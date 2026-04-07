@@ -2,25 +2,31 @@
  * Architecture templates — pre-built AWS diagrams the user can import as a starting point.
  * Each template is a valid ProjectData object.
  */
-import type { ProjectData, FlowNode, FlowEdge } from "@/stores/flow-store";
+import type { ProjectData, FlowNode, FlowEdge, AppFlowNode } from "@/stores/flow-store";
 
 export interface ArchitectureTemplate {
   id: string;
   name: string;
   description: string;
-  category: "serverless" | "containers" | "data" | "security" | "microservices";
+  category: "serverless" | "containers" | "data" | "security" | "microservices" | "full-stack";
   tags: string[];
   estimatedCostUSD: number;
   data: ProjectData;
 }
 
 /** Wraps V2-style flat nodes/edges into V3 ProjectData format */
-function toV3(name: string, nodes: FlowNode[], edges: FlowEdge[]): ProjectData {
+function toV3(
+  name: string,
+  nodes: FlowNode[],
+  edges: FlowEdge[],
+  solNodes: AppFlowNode[] = [],
+  solEdges: FlowEdge[] = []
+): ProjectData {
   return {
     version: 3,
     name,
     infrastructure: { nodes, edges },
-    solutionDesign: { nodes: [], edges: [] },
+    solutionDesign: { nodes: solNodes, edges: solEdges },
     savedAt: ts(),
   };
 }
@@ -65,6 +71,32 @@ function edge(source: string, target: string, protocol = "https"): FlowEdge {
       throughputRPS: 1000,
       messageCount: 100,
     } as unknown as import("@/domain/entities/edge").ConnectionEdge,
+  };
+}
+
+function appNode(
+  id: string,
+  type: string,
+  label: string,
+  hostId: string,
+  x: number,
+  y: number,
+  config?: Record<string, unknown>
+): AppFlowNode {
+  return {
+    id,
+    type: "app-service-node",
+    position: { x, y },
+    data: {
+      id,
+      label,
+      type,
+      category: "application",
+      hostInfrastructureNodeId: hostId,
+      positionX: x,
+      positionY: y,
+      config: config ?? {},
+    } as unknown as import("@/domain/entities/app-component").AppComponentNode,
   };
 }
 
@@ -158,6 +190,22 @@ const microservices: ArchitectureTemplate = {
       edge("ecs-users", "cognito-1"),
       edge("sns-events", "ecs-notify", "sns"),
       edge("ecs-orders", "cw-1"),
+    ],
+    // Solution Design (L2): app components hosted on ECS services
+    [
+      appNode("app-orders-api", "api", "Orders API", "ecs-orders", 100, 80, { type: "rest", port: 8080, replicas: 3, memory: "512Mi", cpu: "250m" }),
+      appNode("app-orders-worker", "worker", "Order Processor", "ecs-orders", 100, 220, { replicas: 2, concurrency: 5, memory: "256Mi", cpu: "125m" }),
+      appNode("app-users-api", "api", "Users API", "ecs-users", 380, 80, { type: "rest", port: 8080, replicas: 2, memory: "256Mi", cpu: "125m" }),
+      appNode("app-notify-consumer", "consumer", "Event Consumer", "ecs-notify", 600, 80, { groupId: "notifications", topics: ["events"], batchSize: 10, replicas: 2, memory: "256Mi", cpu: "125m" }),
+      appNode("app-orders-producer", "producer", "Event Producer", "ecs-orders", 340, 220, { topics: ["events"], serializationFormat: "json", batchSize: 100 }),
+      appNode("app-orders-db", "database-client", "Orders DB Client", "ecs-orders", 100, 360, { connectionPoolSize: 10, timeoutMs: 5000, retryAttempts: 3 }),
+      appNode("app-users-db", "database-client", "Users DB Client", "ecs-users", 380, 360, { connectionPoolSize: 5, timeoutMs: 5000, retryAttempts: 3 }),
+    ], [
+      edge("app-orders-api", "app-orders-worker", "http"),
+      edge("app-orders-api", "app-orders-db", "http"),
+      edge("app-orders-worker", "app-orders-producer", "http"),
+      edge("app-users-api", "app-users-db", "http"),
+      edge("app-orders-producer", "app-notify-consumer", "sqs"),
     ]),
 };
 
@@ -258,6 +306,57 @@ const eventDriven: ArchitectureTemplate = {
     ]),
 };
 
+// ── 7. Full-Stack EKS (L1 + L2 complete) ────────────────────────────────────
+
+const fullStackEks: ArchitectureTemplate = {
+  id: "full-stack-eks",
+  name: "Full-Stack EKS com Design de Solução",
+  description: "Infraestrutura EKS completa com design de solução: API Gateway, microsserviços com sidecar, consumers e cache.",
+  category: "full-stack",
+  tags: ["eks", "kubernetes", "microservices", "full-stack", "sidecar", "cache"],
+  estimatedCostUSD: 890,
+  data: toV3("Full-Stack EKS", [
+      node("r53", "route53", "Route 53", 400, 30, { hostedZones: 1, queriesPerMonth: 5_000_000 }),
+      node("cf", "cloudfront", "CloudFront", 400, 130, { priceClass: "PriceClass_200", requestsPerMonth: 10_000_000, dataTransferGB: 500 }),
+      node("alb", "alb", "ALB Ingress", 400, 250, { type: "application", crossZone: true, idleTimeoutSec: 60 }),
+      node("eks-1", "eks", "EKS Cluster", 400, 380, { nodeCount: 5, instanceType: "m5.xlarge", minNodes: 3, maxNodes: 10 }),
+      node("rds-1", "rds", "RDS Aurora", 200, 530, { engine: "aurora-postgres", instanceClass: "db.r5.large", multiAZ: true, storageGB: 200, readReplicas: 2 }),
+      node("cache-1", "elasticache", "Redis Cluster", 600, 530, { engine: "redis", nodeType: "cache.r5.large", nodeCount: 3, replicationEnabled: true }),
+      node("msk-1", "msk", "MSK Kafka", 400, 650, { brokerCount: 3, instanceType: "kafka.m5.large", storagePerBrokerGB: 100, kafkaVersion: "3.5.1" }),
+      node("cw", "cloudwatch", "CloudWatch", 100, 650, { metricsCount: 150, logsIngestGB: 50, alarmsCount: 30 }),
+    ], [
+      edge("r53", "cf"),
+      edge("cf", "alb"),
+      edge("alb", "eks-1"),
+      edge("eks-1", "rds-1"),
+      edge("eks-1", "cache-1"),
+      edge("eks-1", "msk-1"),
+      edge("eks-1", "cw"),
+    ],
+    // Solution Design — K8s workloads
+    [
+      appNode("ingress", "ingress-controller", "NGINX Ingress", "eks-1", 350, 40, { type: "nginx", tls: true, hosts: ["api.example.com"], replicas: 2, memory: "256Mi", cpu: "250m" }),
+      appNode("gw", "gateway", "API Gateway Mesh", "eks-1", 350, 150, { type: "api-gateway", port: 8080, replicas: 2, rateLimit: 10000, memory: "512Mi", cpu: "500m", circuitBreakerEnabled: true, retryPolicy: true }),
+      appNode("svc-a", "microservice", "Service A", "eks-1", 150, 280, { replicas: 3, cpu: "500m", memory: "512Mi", port: 8080, healthCheckPath: "/health", minReplicas: 2, maxReplicas: 8, targetCPUPercent: 70 }),
+      appNode("svc-b", "microservice", "Service B", "eks-1", 550, 280, { replicas: 2, cpu: "250m", memory: "256Mi", port: 8080, healthCheckPath: "/health", minReplicas: 1, maxReplicas: 5, targetCPUPercent: 75 }),
+      appNode("sidecar-a", "sidecar", "Envoy Proxy", "eks-1", 150, 400, { type: "envoy", port: 15001, protocol: "grpc", memory: "128Mi", cpu: "100m" }),
+      appNode("producer-1", "producer", "Event Producer", "eks-1", 350, 400, { topics: ["orders", "inventory"], serializationFormat: "avro", batchSize: 500, acks: "all" }),
+      appNode("consumer-1", "consumer", "Order Consumer", "eks-1", 150, 520, { groupId: "order-processing", topics: ["orders"], batchSize: 50, replicas: 3, memory: "512Mi", cpu: "250m" }),
+      appNode("db-client", "database-client", "DB Pool", "eks-1", 350, 520, { connectionPoolSize: 20, timeoutMs: 5000, retryAttempts: 3 }),
+      appNode("cache-cl", "cache-client", "Redis Client", "eks-1", 550, 520, { connectionPoolSize: 10, timeoutMs: 1000, ttlSeconds: 300 }),
+    ], [
+      edge("ingress", "gw", "https"),
+      edge("gw", "svc-a", "http"),
+      edge("gw", "svc-b", "http"),
+      edge("svc-a", "sidecar-a", "grpc"),
+      edge("svc-a", "producer-1", "http"),
+      edge("svc-a", "db-client", "http"),
+      edge("svc-b", "cache-cl", "http"),
+      edge("producer-1", "consumer-1", "kafka"),
+      edge("consumer-1", "db-client", "http"),
+    ]),
+};
+
 // ── Exports ───────────────────────────────────────────────────────────────────
 
 export const ARCHITECTURE_TEMPLATES: ArchitectureTemplate[] = [
@@ -267,6 +366,7 @@ export const ARCHITECTURE_TEMPLATES: ArchitectureTemplate[] = [
   dataPipeline,
   secureArchitecture,
   eventDriven,
+  fullStackEks,
 ];
 
 export const TEMPLATE_CATEGORY_LABELS: Record<ArchitectureTemplate["category"], string> = {
@@ -275,4 +375,5 @@ export const TEMPLATE_CATEGORY_LABELS: Record<ArchitectureTemplate["category"], 
   data: "Dados",
   security: "Segurança",
   microservices: "Microsserviços",
+  "full-stack": "Full-Stack",
 };
