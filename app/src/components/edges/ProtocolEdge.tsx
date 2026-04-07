@@ -46,7 +46,7 @@ const ProtocolEdge = memo(function ProtocolEdge({
   });
 
   const showLabel =
-    activeLayer === "services" || activeLayer === "simulation" || selected;
+    activeLayer === "solution-design" || activeLayer === "simulation" || selected;
 
   const edgeColor = selected ? "#6366f1" : protocolInfo.color;
 

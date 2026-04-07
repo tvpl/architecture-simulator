@@ -205,7 +205,7 @@ export function FlowCanvas() {
         ...e,
         animated:
           (activeLayer === "simulation" && simStatus === "complete") ||
-          activeLayer === "services",
+          activeLayer === "solution-design",
       })),
     [edges, activeLayer, simStatus]
   );
@@ -292,7 +292,7 @@ export function FlowCanvas() {
               </div>
               <div className="text-xs text-muted-foreground">
                 {activeLayer === "architecture" && "Construa sua arquitetura"}
-                {activeLayer === "services" && "Visualize comunicação entre serviços"}
+                {activeLayer === "solution-design" && "Desenhe seus serviços e comunicações"}
                 {activeLayer === "cost" && "Analise custos por componente"}
                 {activeLayer === "simulation" && "Execute a simulação para ver métricas"}
               </div>

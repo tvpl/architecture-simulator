@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { Layers, Network, DollarSign, Play } from "lucide-react";
+import { Layers, Boxes, DollarSign, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLayerStore } from "@/stores/layer-store";
 import { LAYER_CONFIGS } from "@/domain/entities/layer";
@@ -9,7 +9,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 
 const LAYER_ICONS: Record<LayerType, React.ElementType> = {
   architecture: Layers,
-  services: Network,
+  "solution-design": Boxes,
   cost: DollarSign,
   simulation: Play,
 };

@@ -83,7 +83,7 @@ const ServiceNode = memo(function ServiceNode({ data, selected }: NodeProps<Flow
         </div>
 
         {/* Layer-specific overlay */}
-        {activeLayer === "services" && (
+        {activeLayer === "solution-design" && (
           <div className="mt-1.5 pt-1.5 border-t border-border/50 text-[10px] text-muted-foreground space-y-0.5">
             <div className="flex justify-between">
               <span>Throughput</span>
