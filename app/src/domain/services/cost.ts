@@ -4,6 +4,7 @@
  * All values in USD/month.
  */
 import type { ArchitectureNode } from "../entities/node";
+import type { AppComponentNode } from "../entities/app-component";
 import type { CostBreakdownItem } from "../entities/simulation";
 
 export interface ServiceCostResult {
@@ -110,6 +111,53 @@ export function calculateServiceCost(
     default:
       return { monthlyCostUSD: 0, details: "Free or not priced", lineItems: [] };
   }
+}
+
+/**
+ * Estimate operational cost contribution of an app component.
+ * App components don't have direct AWS billing, but they contribute to
+ * resource consumption on their host (CPU, memory, replicas, log volume).
+ */
+export function estimateAppComponentCost(
+  node: AppComponentNode
+): ServiceCostResult {
+  const config = node.config as unknown as Record<string, unknown>;
+  const replicas = (config.replicas as number) ?? 1;
+  const cpuStr = (config.cpu as string) ?? "250m";
+  const memStr = (config.memory as string) ?? "256Mi";
+
+  // Parse CPU (millicores to vCPU fraction)
+  const cpuMillis = cpuStr.endsWith("m")
+    ? parseInt(cpuStr)
+    : parseFloat(cpuStr) * 1000;
+  const vCPU = cpuMillis / 1000;
+
+  // Parse Memory (Mi to GB)
+  const memMi = memStr.endsWith("Mi")
+    ? parseInt(memStr)
+    : memStr.endsWith("Gi")
+    ? parseFloat(memStr) * 1024
+    : 256;
+  const memGB = memMi / 1024;
+
+  // Fargate pricing as proxy: $0.04048/vCPU-hour + $0.004445/GB-hour
+  const cpuCost = replicas * vCPU * 0.04048 * 730;
+  const memCost = replicas * memGB * 0.004445 * 730;
+
+  // Estimated log ingestion cost ($0.50/GB)
+  const logCost = replicas * 0.5 * 0.5; // ~0.5 GB/month per replica
+
+  const total = cpuCost + memCost + logCost;
+
+  return {
+    monthlyCostUSD: total,
+    details: `${replicas} réplica(s), ${cpuStr} CPU, ${memStr} memória`,
+    lineItems: [
+      { label: "vCPU (estimado)", amount: cpuCost },
+      { label: "Memória (estimado)", amount: memCost },
+      { label: "Logs (estimado)", amount: logCost },
+    ],
+  };
 }
 
 export function buildCostBreakdown(

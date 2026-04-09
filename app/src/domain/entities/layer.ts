@@ -1,17 +1,21 @@
 export const LAYER_TYPES = [
   "architecture",
-  "services",
+  "solution-design",
   "cost",
   "simulation",
 ] as const;
 
 export type LayerType = (typeof LAYER_TYPES)[number];
 
+/** Determines which view component renders for a given layer */
+export type LayerViewType = "canvas" | "dashboard" | "simulation-view";
+
 export interface LayerConfig {
   type: LayerType;
   displayName: string;
   description: string;
   icon: string;
+  viewType: LayerViewType;
   showNodeLabels: boolean;
   showEdgeLabels: boolean;
   showCostBadges: boolean;
@@ -23,19 +27,21 @@ export const LAYER_CONFIGS: Record<LayerType, LayerConfig> = {
   architecture: {
     type: "architecture",
     displayName: "Arquitetura",
-    description: "Componentes AWS, VPC, sub-redes e grupos de segurança",
+    description: "Infraestrutura cloud — componentes AWS, VPC, sub-redes e segurança",
     icon: "Layers",
+    viewType: "canvas",
     showNodeLabels: true,
     showEdgeLabels: false,
     showCostBadges: false,
     showAnimations: false,
     showContainerBoundaries: true,
   },
-  services: {
-    type: "services",
-    displayName: "Serviços",
-    description: "Microsserviços, comunicação e protocolos",
-    icon: "Network",
+  "solution-design": {
+    type: "solution-design",
+    displayName: "Design de Solução",
+    description: "Microsserviços, workers, APIs, pods e comunicação entre serviços",
+    icon: "Boxes",
+    viewType: "canvas",
     showNodeLabels: true,
     showEdgeLabels: true,
     showCostBadges: false,
@@ -45,8 +51,9 @@ export const LAYER_CONFIGS: Record<LayerType, LayerConfig> = {
   cost: {
     type: "cost",
     displayName: "Custos",
-    description: "Análise de custos por componente e total",
+    description: "Dashboard de custos, breakdown por componente e projeções",
     icon: "DollarSign",
+    viewType: "dashboard",
     showNodeLabels: true,
     showEdgeLabels: false,
     showCostBadges: true,
@@ -56,8 +63,9 @@ export const LAYER_CONFIGS: Record<LayerType, LayerConfig> = {
   simulation: {
     type: "simulation",
     displayName: "Simulação",
-    description: "Fluxo de mensagens ao vivo, latência e gargalos",
+    description: "Simulação de carga, latência, throughput e gargalos",
     icon: "Play",
+    viewType: "simulation-view",
     showNodeLabels: true,
     showEdgeLabels: true,
     showCostBadges: false,

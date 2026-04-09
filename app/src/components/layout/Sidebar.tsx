@@ -1,25 +1,54 @@
 "use client";
+/**
+ * Sidebar — layer-aware component palette.
+ * Shows infrastructure services (L1) or app components (L2) based on active layer.
+ */
 import React, { useState, useCallback } from "react";
-import { Search, ChevronLeft, ChevronRight, ChevronDown, ChevronRight as ChevronRightSmall } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, ChevronDown, ChevronRight as ChevronRightSmall, Server } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { registry } from "@/registry";
+import { appComponentRegistry } from "@/registry/app-components";
 import type { AWSServiceType } from "@/domain/entities/node";
+import type { AppComponentType } from "@/domain/entities/app-component";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useUIStore } from "@/stores/ui-store";
+import { useLayerStore } from "@/stores/layer-store";
+import { useFlowStore, selectInfraHostOptions } from "@/stores/flow-store";
 import { ServiceIcon } from "@/components/nodes/base/ServiceIcon";
 
 export function Sidebar() {
   const { sidebarCollapsed, toggleSidebar } = useUIStore();
+  const activeLayer = useLayerStore((s) => s.activeLayer);
   const [search, setSearch] = useState("");
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
-    new Set(["compute", "networking", "messaging"])
+    new Set(["compute", "networking", "messaging", "application", "messaging-app"])
   );
 
-  const palette = registry.buildPalette();
+  const isInfraLayer = activeLayer === "architecture";
+
+  const handleDragStart = useCallback(
+    (event: React.DragEvent, type: string) => {
+      const mimeType = isInfraLayer
+        ? "application/architecture-service"
+        : "application/app-component";
+      event.dataTransfer.setData(mimeType, type);
+      event.dataTransfer.effectAllowed = "move";
+    },
+    [isInfraLayer]
+  );
+
+  // Don't show sidebar for non-canvas layers
+  if (activeLayer === "cost" || activeLayer === "simulation") {
+    return null;
+  }
+
+  const palette = isInfraLayer
+    ? registry.buildPalette()
+    : appComponentRegistry.buildPalette();
 
   const filteredPalette = search.trim()
     ? palette.map((cat) => ({
@@ -41,13 +70,9 @@ export function Sidebar() {
     });
   };
 
-  const handleDragStart = useCallback(
-    (event: React.DragEvent, type: AWSServiceType) => {
-      event.dataTransfer.setData("application/architecture-service", type);
-      event.dataTransfer.effectAllowed = "move";
-    },
-    []
-  );
+  const totalCount = isInfraLayer
+    ? registry.getAll().length
+    : appComponentRegistry.getAll().length;
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -61,7 +86,9 @@ export function Sidebar() {
         <div className={cn("flex items-center border-b border-border p-3", sidebarCollapsed ? "justify-center" : "justify-between")}>
           {!sidebarCollapsed && (
             <div>
-              <h2 className="text-sm font-semibold text-foreground">Componentes AWS</h2>
+              <h2 className="text-sm font-semibold text-foreground">
+                {isInfraLayer ? "Componentes AWS" : "Componentes de Solução"}
+              </h2>
               <p className="text-xs text-muted-foreground">Arraste para o canvas</p>
             </div>
           )}
@@ -85,7 +112,7 @@ export function Sidebar() {
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
               <Input
-                placeholder="Buscar serviço..."
+                placeholder={isInfraLayer ? "Buscar serviço..." : "Buscar componente..."}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-8 h-8 text-xs"
@@ -94,7 +121,10 @@ export function Sidebar() {
           </div>
         )}
 
-        {/* Service palette */}
+        {/* Infrastructure context for Layer 2 */}
+        {!isInfraLayer && !sidebarCollapsed && <InfrastructureContext />}
+
+        {/* Component palette */}
         <ScrollArea className="flex-1">
           <div className={cn("py-2", sidebarCollapsed ? "px-2" : "px-2")}>
             {filteredPalette.map((category, idx) => (
@@ -137,7 +167,7 @@ export function Sidebar() {
         {/* Footer */}
         {!sidebarCollapsed && (
           <div className="p-3 border-t border-border text-[10px] text-muted-foreground text-center">
-            {registry.getAll().length} serviços AWS disponíveis
+            {totalCount} {isInfraLayer ? "serviços AWS" : "componentes"} disponíveis
           </div>
         )}
       </div>
@@ -145,11 +175,48 @@ export function Sidebar() {
   );
 }
 
+// ── InfrastructureContext — shows available infra hosts for Layer 2 ─────────
+
+function InfrastructureContext() {
+  const infraHosts = useFlowStore((s) => selectInfraHostOptions(s));
+
+  if (infraHosts.length === 0) {
+    return (
+      <div className="p-3 border-b border-border bg-amber-50/50 dark:bg-amber-950/20">
+        <div className="flex items-center gap-2 text-xs text-amber-700 dark:text-amber-400">
+          <Server className="w-3.5 h-3.5 shrink-0" />
+          <span>Adicione infraestrutura na aba Arquitetura primeiro</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-2 border-b border-border bg-muted/30">
+      <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 px-1">
+        Infraestrutura disponível
+      </div>
+      <div className="space-y-0.5">
+        {infraHosts.map((host) => (
+          <div
+            key={host.id}
+            className="flex items-center gap-2 px-2 py-1 rounded text-xs text-muted-foreground"
+          >
+            <div className="w-2 h-2 rounded-full bg-green-500 shrink-0" />
+            <span className="truncate">{host.data.label}</span>
+            <span className="text-[10px] ml-auto opacity-60">{host.data.type}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── ServiceCard ───────────────────────────────────────────────────────────────
 
 interface ServiceCardProps {
   service: {
-    type: AWSServiceType;
+    type: AWSServiceType | AppComponentType;
     label: string;
     description: string;
     iconName: string;
@@ -157,7 +224,7 @@ interface ServiceCardProps {
     bgColor: string;
   };
   collapsed: boolean;
-  onDragStart: (e: React.DragEvent, type: AWSServiceType) => void;
+  onDragStart: (e: React.DragEvent, type: string) => void;
 }
 
 function ServiceCard({ service, collapsed, onDragStart }: ServiceCardProps) {

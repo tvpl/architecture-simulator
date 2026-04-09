@@ -1,6 +1,7 @@
 "use client";
 /**
  * FlowCanvas — main canvas component.
+ * Layer-aware: renders infrastructure (L1) or solution design (L2) nodes/edges.
  * Connects @xyflow/react with Zustand stores and the registry-driven node/edge types.
  */
 import React, { useCallback, useEffect, useRef, useMemo, useState } from "react";
@@ -15,15 +16,18 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
-import { useFlowStore, type FlowNode, type FlowEdge } from "@/stores/flow-store";
+import { useFlowStore, type FlowNode, type FlowEdge, type AppFlowNode, selectInfraHostOptions } from "@/stores/flow-store";
 import { useSelectionStore } from "@/stores/selection-store";
 import { useUIStore } from "@/stores/ui-store";
 import { useLayerStore } from "@/stores/layer-store";
 import { useSimulationStore } from "@/stores/simulation-store";
 import type { AWSServiceType } from "@/domain/entities/node";
+import type { AppComponentType } from "@/domain/entities/app-component";
 import { ServiceNode } from "@/components/nodes/base/ServiceNode";
 import { ContainerNode } from "@/components/nodes/base/ContainerNode";
 import { NoteNode } from "@/components/nodes/base/NoteNode";
+import { AppServiceNode } from "@/components/nodes/app/AppServiceNode";
+import { HostGroupNode, type HostGroupNodeData } from "@/components/nodes/app/HostGroupNode";
 import { ProtocolEdge } from "@/components/edges/ProtocolEdge";
 import { NodeContextMenu, type ContextMenuState } from "./NodeContextMenu";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
@@ -35,6 +39,8 @@ const nodeTypes = {
   "service-node": ServiceNode,
   "container-node": ContainerNode,
   "note-node": NoteNode,
+  "app-service-node": AppServiceNode,
+  "host-group-node": HostGroupNode,
 } as const;
 
 const edgeTypes = {
@@ -79,25 +85,39 @@ export function FlowCanvas() {
   const simStatus = useSimulationStore((s) => s.status);
   const snapToGrid = useUIStore((s) => s.snapToGrid);
 
-  const {
-    nodes,
-    edges,
-    onNodesChange,
-    onEdgesChange,
-    onConnect,
-    addNode,
-    updateNodeData,
-  } = useFlowStore();
+  const isSolutionLayer = activeLayer === "solution-design";
+
+  // ── Layer 1 state ──────────────────────────────────────────────────────────
+  const infraNodes = useFlowStore((s) => s.nodes);
+  const infraEdges = useFlowStore((s) => s.edges);
+  const onNodesChange = useFlowStore((s) => s.onNodesChange);
+  const onEdgesChange = useFlowStore((s) => s.onEdgesChange);
+  const onConnect = useFlowStore((s) => s.onConnect);
+  const addNode = useFlowStore((s) => s.addNode);
+  const updateNodeData = useFlowStore((s) => s.updateNodeData);
+
+  // ── Layer 2 state ──────────────────────────────────────────────────────────
+  const solutionNodes = useFlowStore((s) => s.solutionNodes);
+  const solutionEdges = useFlowStore((s) => s.solutionEdges);
+  const onSolutionNodesChange = useFlowStore((s) => s.onSolutionNodesChange);
+  const onSolutionEdgesChange = useFlowStore((s) => s.onSolutionEdgesChange);
+  const onSolutionConnect = useFlowStore((s) => s.onSolutionConnect);
+  const addAppComponent = useFlowStore((s) => s.addAppComponent);
+  const infraHosts = useFlowStore(selectInfraHostOptions);
 
   const { selectNode, selectEdge, clearSelection } = useSelectionStore();
   const { openPropertiesPanel } = useUIStore();
+
+  // Choose which nodes/edges to render based on layer
+  const activeNodes = isSolutionLayer ? solutionNodes : infraNodes;
+  const activeEdges = isSolutionLayer ? solutionEdges : infraEdges;
 
   // ── Context menu ─────────────────────────────────────────────────────────
 
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
 
   const onNodeContextMenu = useCallback(
-    (event: React.MouseEvent, node: FlowNode) => {
+    (event: React.MouseEvent, node: FlowNode | AppFlowNode) => {
       event.preventDefault();
       selectNode(node.id);
       setContextMenu({ nodeId: node.id, x: event.clientX, y: event.clientY });
@@ -113,7 +133,8 @@ export function FlowCanvas() {
 
   const startRename = useCallback(
     (nodeId: string) => {
-      const node = useFlowStore.getState().nodes.find((n) => n.id === nodeId);
+      const allNodes = [...useFlowStore.getState().nodes, ...useFlowStore.getState().solutionNodes];
+      const node = allNodes.find((n) => n.id === nodeId);
       if (!node) return;
       setRenamingNodeId(nodeId);
       setRenameValue(node.data.label);
@@ -130,7 +151,13 @@ export function FlowCanvas() {
 
   const commitRename = useCallback(() => {
     if (renamingNodeId && renameValue.trim()) {
-      updateNodeData(renamingNodeId, { label: renameValue.trim() });
+      // Try L1 first, then L2
+      const isL2 = useFlowStore.getState().solutionNodes.some((n) => n.id === renamingNodeId);
+      if (isL2) {
+        useFlowStore.getState().updateAppComponentData(renamingNodeId, { label: renameValue.trim() });
+      } else {
+        updateNodeData(renamingNodeId, { label: renameValue.trim() });
+      }
     }
     setRenamingNodeId(null);
   }, [renamingNodeId, renameValue, updateNodeData]);
@@ -145,11 +172,6 @@ export function FlowCanvas() {
   const onDrop = useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {
       event.preventDefault();
-      const type = event.dataTransfer.getData(
-        "application/architecture-service"
-      ) as AWSServiceType;
-      if (!type) return;
-
       const wrapper = wrapperRef.current;
       if (!wrapper) return;
 
@@ -159,15 +181,30 @@ export function FlowCanvas() {
         y: event.clientY - bounds.top,
       };
 
-      addNode(type, position);
+      // Layer 1: infrastructure service drop
+      const infraType = event.dataTransfer.getData("application/architecture-service") as AWSServiceType;
+      if (infraType) {
+        addNode(infraType, position);
+        return;
+      }
+
+      // Layer 2: app component drop
+      const appType = event.dataTransfer.getData("application/app-component") as AppComponentType;
+      if (appType) {
+        // Auto-assign to first available host (user can change in properties)
+        const defaultHost = infraHosts[0];
+        if (!defaultHost) return; // No hosts available
+        addAppComponent(appType, position, defaultHost.id);
+        return;
+      }
     },
-    [addNode]
+    [addNode, addAppComponent, infraHosts]
   );
 
   // ── Element selection ────────────────────────────────────────────────────
 
   const onNodeClick = useCallback(
-    (_: React.MouseEvent, node: FlowNode) => {
+    (_: React.MouseEvent, node: FlowNode | AppFlowNode) => {
       selectNode(node.id);
       openPropertiesPanel();
     },
@@ -175,8 +212,7 @@ export function FlowCanvas() {
   );
 
   const onNodeDoubleClick = useCallback(
-    (_: React.MouseEvent, node: FlowNode) => {
-      // Notes handle their own double-click inline editing
+    (_: React.MouseEvent, node: FlowNode | AppFlowNode) => {
       if (node.data.type === "note") return;
       startRename(node.id);
     },
@@ -201,29 +237,68 @@ export function FlowCanvas() {
 
   const animatedEdges = useMemo(
     () =>
-      edges.map((e) => ({
+      activeEdges.map((e) => ({
         ...e,
         animated:
           (activeLayer === "simulation" && simStatus === "complete") ||
-          activeLayer === "services",
+          activeLayer === "solution-design",
       })),
-    [edges, activeLayer, simStatus]
+    [activeEdges, activeLayer, simStatus]
   );
+
+  // ── Host group nodes (visual containers for L2) ──────────────────────────
+
+  const hostGroupNodes = useMemo(() => {
+    if (!isSolutionLayer) return [];
+    // Build a map of hostId → count of components
+    const hostCounts = new Map<string, number>();
+    for (const n of solutionNodes) {
+      const hid = n.data.hostInfrastructureNodeId;
+      if (hid) hostCounts.set(hid, (hostCounts.get(hid) ?? 0) + 1);
+    }
+    // Create a ghost group node for each host that has components
+    return infraHosts
+      .filter((h) => hostCounts.has(h.id))
+      .map((host, idx) => {
+        // Position groups in a grid layout
+        const col = idx % 3;
+        const row = Math.floor(idx / 3);
+        return {
+          id: `host-group-${host.id}`,
+          type: "host-group-node" as const,
+          position: { x: col * 380, y: row * 320 },
+          draggable: false,
+          selectable: false,
+          data: {
+            hostId: host.id,
+            hostLabel: host.data.label,
+            hostType: host.data.type,
+            childCount: hostCounts.get(host.id) ?? 0,
+          } as HostGroupNodeData,
+          style: { width: 340, height: 280 },
+          zIndex: -1,
+        };
+      });
+  }, [isSolutionLayer, solutionNodes, infraHosts]);
 
   // ── Node type mapping (route note type to note-node renderer) ─────────────
 
   const typedNodes = useMemo(
-    () =>
-      nodes.map((n) =>
+    () => {
+      const mapped = (activeNodes as (FlowNode | AppFlowNode)[]).map((n) =>
         n.data.type === "note" ? { ...n, type: "note-node" } : n
-      ),
-    [nodes]
+      );
+      // Prepend host groups so they render behind app nodes
+      return [...hostGroupNodes, ...mapped] as FlowNode[];
+    },
+    [activeNodes, hostGroupNodes]
   );
 
   // ── MiniMap color ────────────────────────────────────────────────────────
 
   const nodeColor = useCallback((node: { data?: { type?: string } }) => {
     const colorMap: Record<string, string> = {
+      // L1 infra colors
       lambda: "#f97316", ec2: "#d97706", ecs: "#0d9488", eks: "#2563eb",
       fargate: "#0891b2", alb: "#059669", nlb: "#16a34a",
       "api-gateway": "#db2777", cloudfront: "#4f46e5", sqs: "#f59e0b",
@@ -231,18 +306,43 @@ export function FlowCanvas() {
       s3: "#22c55e", rds: "#1d4ed8", dynamodb: "#4f46e5", elasticache: "#dc2626",
       vpc: "#7c3aed", subnet: "#8b5cf6", waf: "#ea580c", cloudwatch: "#22c55e",
       note: "#eab308",
+      // L2 app component colors
+      microservice: "#6366f1", worker: "#8b5cf6", consumer: "#f59e0b",
+      producer: "#f97316", api: "#3b82f6", sidecar: "#14b8a6",
+      "ingress-controller": "#059669", cronjob: "#a855f7", gateway: "#ec4899",
+      "database-client": "#1d4ed8", "cache-client": "#dc2626", "batch-processor": "#0891b2",
     };
     return colorMap[node.data?.type ?? ""] ?? "#94a3b8";
   }, []);
 
+  // Choose correct change/connect handlers based on layer
+  // Cast needed because FlowNode and AppFlowNode have different data types,
+  // but ReactFlow handlers are structurally compatible at runtime.
+  const handleNodesChange = isSolutionLayer
+    ? (onSolutionNodesChange as unknown as typeof onNodesChange)
+    : onNodesChange;
+  const handleEdgesChange = isSolutionLayer
+    ? onSolutionEdgesChange
+    : onEdgesChange;
+  const handleConnect = isSolutionLayer
+    ? onSolutionConnect
+    : onConnect;
+
+  // Empty state text
+  const emptyMessages: Record<string, { title: string; sub: string }> = {
+    architecture: { title: "Arraste componentes AWS para começar", sub: "Construa sua arquitetura" },
+    "solution-design": { title: "Arraste componentes de solução para começar", sub: "Desenhe seus serviços e comunicações" },
+  };
+  const emptyMsg = emptyMessages[activeLayer];
+
   return (
     <div className="w-full h-full relative" ref={wrapperRef}>
       <ReactFlow<FlowNode, FlowEdge>
-        nodes={typedNodes}
+        nodes={typedNodes as FlowNode[]}
         edges={animatedEdges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
+        onNodesChange={handleNodesChange}
+        onEdgesChange={handleEdgesChange}
+        onConnect={handleConnect}
         onDrop={onDrop}
         onDragOver={onDragOver}
         onNodeClick={onNodeClick}
@@ -283,18 +383,15 @@ export function FlowCanvas() {
         <CanvasEffects onStartRename={startRename} />
 
         {/* Empty state */}
-        {nodes.length === 0 && (
+        {activeNodes.length === 0 && emptyMsg && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className="text-center space-y-3 opacity-50">
-              <div className="text-4xl">☁️</div>
+              <div className="text-4xl">{isSolutionLayer ? "🧩" : "☁️"}</div>
               <div className="text-sm font-medium text-muted-foreground">
-                Arraste componentes AWS para começar
+                {emptyMsg.title}
               </div>
               <div className="text-xs text-muted-foreground">
-                {activeLayer === "architecture" && "Construa sua arquitetura"}
-                {activeLayer === "services" && "Visualize comunicação entre serviços"}
-                {activeLayer === "cost" && "Analise custos por componente"}
-                {activeLayer === "simulation" && "Execute a simulação para ver métricas"}
+                {emptyMsg.sub}
               </div>
             </div>
           </div>
@@ -312,7 +409,8 @@ export function FlowCanvas() {
 
       {/* Inline rename overlay */}
       {renamingNodeId && (() => {
-        const n = nodes.find((nd) => nd.id === renamingNodeId);
+        const allNodes = [...infraNodes, ...(solutionNodes as unknown as FlowNode[])];
+        const n = allNodes.find((nd) => nd.id === renamingNodeId);
         return n ? (
           <div
             className="absolute inset-0 flex items-center justify-center pointer-events-none"
@@ -336,7 +434,7 @@ export function FlowCanvas() {
                   if (e.key === "Enter") commitRename();
                   if (e.key === "Escape") setRenamingNodeId(null);
                 }}
-                placeholder="Nome do serviço..."
+                placeholder="Nome do componente..."
               />
             </div>
           </div>

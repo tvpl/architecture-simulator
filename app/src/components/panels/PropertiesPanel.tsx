@@ -1,15 +1,17 @@
 "use client";
 /**
  * PropertiesPanel — config panel for the selected node or edge.
- * Renders fields from the ServiceDefinition.configSections dynamically.
+ * Layer-aware: routes to infrastructure or solution design properties.
+ * Renders fields from configSections dynamically via shared FieldRenderer.
  */
 import React, { useState, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { X, Trash2, Copy } from "lucide-react";
+import { X, Trash2, Copy, Server } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { registry } from "@/registry";
+import { appComponentRegistry } from "@/registry/app-components";
 import { useSelectionStore } from "@/stores/selection-store";
-import { useFlowStore } from "@/stores/flow-store";
+import { useFlowStore, selectInfraHostOptions } from "@/stores/flow-store";
 import { useUIStore } from "@/stores/ui-store";
 import { PROTOCOL_INFO, CONNECTION_PROTOCOLS } from "@/domain/entities/edge";
 import type { ConfigField } from "@/registry/types";
@@ -26,10 +28,21 @@ import { ServiceIcon } from "@/components/nodes/base/ServiceIcon";
 export function PropertiesPanel() {
   const { propertiesPanelOpen, closePropertiesPanel } = useUIStore();
   const { selectedNodeId, selectedEdgeId } = useSelectionStore();
-  const { nodes, edges, updateNodeData, updateNodeConfig, updateEdgeData, removeNode, removeEdge, duplicateNode } =
-    useFlowStore();
+  const {
+    nodes, edges, updateNodeData, updateNodeConfig, updateEdgeData,
+    removeNode, removeEdge, duplicateNode,
+    solutionNodes, solutionEdges, removeSolutionEdge,
+  } = useFlowStore();
 
   const isVisible = propertiesPanelOpen && (!!selectedNodeId || !!selectedEdgeId);
+
+  // Determine if selection is L2
+  const isL2Node = selectedNodeId
+    ? solutionNodes.some((n) => n.id === selectedNodeId)
+    : false;
+  const isL2Edge = selectedEdgeId
+    ? solutionEdges.some((e) => e.id === selectedEdgeId)
+    : false;
 
   return (
     <AnimatePresence>
@@ -41,7 +54,8 @@ export function PropertiesPanel() {
       transition={{ type: "spring", damping: 30, stiffness: 300 }}
       className="absolute top-2 right-2 bottom-2 w-80 z-20 flex flex-col bg-background border border-border rounded-xl shadow-xl overflow-hidden"
     >
-      {selectedNodeId && (
+      {/* L1 Node */}
+      {selectedNodeId && !isL2Node && (
         <NodePropertiesContent
           key={selectedNodeId}
           nodeId={selectedNodeId}
@@ -53,7 +67,18 @@ export function PropertiesPanel() {
           onClose={closePropertiesPanel}
         />
       )}
-      {selectedEdgeId && !selectedNodeId && (
+
+      {/* L2 Node */}
+      {selectedNodeId && isL2Node && (
+        <AppComponentPropertiesContent
+          key={selectedNodeId}
+          nodeId={selectedNodeId}
+          onClose={closePropertiesPanel}
+        />
+      )}
+
+      {/* L1 Edge */}
+      {selectedEdgeId && !selectedNodeId && !isL2Edge && (
         <EdgePropertiesContent
           edgeId={selectedEdgeId}
           edges={edges}
@@ -63,13 +88,25 @@ export function PropertiesPanel() {
           onClose={closePropertiesPanel}
         />
       )}
+
+      {/* L2 Edge */}
+      {selectedEdgeId && !selectedNodeId && isL2Edge && (
+        <EdgePropertiesContent
+          edgeId={selectedEdgeId}
+          edges={solutionEdges}
+          nodes={nodes}
+          onUpdate={updateEdgeData}
+          onRemove={removeSolutionEdge}
+          onClose={closePropertiesPanel}
+        />
+      )}
     </motion.div>
       )}
     </AnimatePresence>
   );
 }
 
-// ── Node Properties ──────────────────────────────────────────────────────────
+// ── L1 Node Properties ──────────────────────────────────────────────────────
 
 function NodePropertiesContent({
   nodeId,
@@ -169,6 +206,169 @@ function NodePropertiesContent({
           <Separator />
 
           {/* Config sections */}
+          {def?.configSections.map((section) => (
+            <div key={section.title} className="space-y-2.5">
+              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                {section.title}
+              </div>
+              {section.fields.map((field) => (
+                <FieldRenderer
+                  key={field.key}
+                  field={field}
+                  value={localConfig[field.key]}
+                  onChange={(v) => handleConfigChange(field.key, v)}
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+      </ScrollArea>
+    </>
+  );
+}
+
+// ── L2 App Component Properties ─────────────────────────────────────────────
+
+function AppComponentPropertiesContent({
+  nodeId,
+  onClose,
+}: {
+  nodeId: string;
+  onClose: () => void;
+}) {
+  const solutionNodes = useFlowStore((s) => s.solutionNodes);
+  const updateAppComponentData = useFlowStore((s) => s.updateAppComponentData);
+  const updateAppComponentConfig = useFlowStore((s) => s.updateAppComponentConfig);
+  const removeAppComponent = useFlowStore((s) => s.removeAppComponent);
+  const duplicateAppComponent = useFlowStore((s) => s.duplicateAppComponent);
+  const infraHosts = useFlowStore(selectInfraHostOptions);
+
+  const flowNode = solutionNodes.find((n) => n.id === nodeId);
+  const data = flowNode?.data;
+  const def = data ? appComponentRegistry.get(data.type) : undefined;
+
+  const [label, setLabel] = useState(data?.label ?? "");
+  const [localConfig, setLocalConfig] = useState<Record<string, unknown>>(
+    (data?.config as unknown as Record<string, unknown>) ?? {}
+  );
+
+  const handleConfigChange = useCallback(
+    (key: string, value: unknown) => {
+      const updated = { ...localConfig, [key]: value };
+      setLocalConfig(updated);
+      updateAppComponentConfig(nodeId, { [key]: value });
+    },
+    [localConfig, nodeId, updateAppComponentConfig]
+  );
+
+  if (!flowNode || !data) return null;
+
+  const applyLabel = () => {
+    if (label !== data.label) updateAppComponentData(nodeId, { label });
+  };
+
+  const currentHostId = data.hostInfrastructureNodeId;
+
+  return (
+    <>
+      {/* Header */}
+      <div className="flex items-center gap-2 p-3 border-b border-border shrink-0">
+        {def && (
+          <div className={cn("p-1.5 rounded-lg", def.bgColor)}>
+            <ServiceIcon iconName={def.iconName} className={cn("w-4 h-4", def.color)} />
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-semibold text-foreground truncate">{data.label}</div>
+          <div className="text-xs text-muted-foreground">{def?.label ?? data.type}</div>
+        </div>
+        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={onClose}>
+          <X className="w-4 h-4" />
+        </Button>
+      </div>
+
+      {/* Help text */}
+      {def?.helpText && (
+        <div className="px-3 py-2 bg-blue-50/50 dark:bg-blue-950/20 border-b border-border text-[11px] text-blue-700 dark:text-blue-400">
+          {def.helpText}
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="flex gap-1.5 px-3 pt-2 shrink-0">
+        <Button
+          variant="outline"
+          size="sm"
+          className="flex-1 gap-1.5 h-7 text-xs"
+          onClick={() => duplicateAppComponent(nodeId)}
+        >
+          <Copy className="w-3.5 h-3.5" />
+          Duplicar
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="flex-1 gap-1.5 h-7 text-xs text-destructive hover:text-destructive"
+          onClick={() => { removeAppComponent(nodeId); onClose(); }}
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+          Remover
+        </Button>
+      </div>
+
+      <ScrollArea className="flex-1">
+        <div className="p-3 space-y-4">
+          {/* Label */}
+          <div className="space-y-1.5">
+            <Label className="text-xs">Nome</Label>
+            <Input
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              onBlur={applyLabel}
+              onKeyDown={(e) => e.key === "Enter" && applyLabel()}
+              className="h-8 text-sm"
+            />
+          </div>
+
+          <Separator />
+
+          {/* Host infrastructure selector */}
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-1.5">
+              <Server className="w-3.5 h-3.5 text-muted-foreground" />
+              <Label className="text-xs">Infraestrutura Host</Label>
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              Selecione o componente de infraestrutura (Layer 1) que hospeda este serviço
+            </p>
+            <Select
+              value={currentHostId}
+              onValueChange={(v) =>
+                updateAppComponentData(nodeId, { hostInfrastructureNodeId: v })
+              }
+            >
+              <SelectTrigger className="h-8 text-sm">
+                <SelectValue placeholder="Selecionar host..." />
+              </SelectTrigger>
+              <SelectContent>
+                {infraHosts.map((host) => (
+                  <SelectItem key={host.id} value={host.id}>
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-green-500" />
+                      {host.data.label}
+                      <span className="text-[10px] text-muted-foreground">
+                        ({host.data.type})
+                      </span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Separator />
+
+          {/* Config sections from registry */}
           {def?.configSections.map((section) => (
             <div key={section.title} className="space-y-2.5">
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
@@ -315,7 +515,7 @@ function EdgePropertiesContent({
   );
 }
 
-// ── Generic field renderer ───────────────────────────────────────────────────
+// ── Generic field renderer (shared across L1 and L2) ────────────────────────
 
 function FieldRenderer({
   field,
