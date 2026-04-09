@@ -38,7 +38,7 @@ import { cn } from "@/lib/utils";
 export function Navbar() {
   const importRef = useRef<HTMLInputElement>(null);
 
-  const { exportProject, importProject, clearCanvas, projectName, setProjectName, nodes } =
+  const { exportProject, importProject, clearCanvas, projectName, setProjectName, nodes, solutionNodes } =
     useFlowStore();
   const { status, setRunning, setResult, setError, reset } = useSimulationStore();
   const {
@@ -202,6 +202,29 @@ export function Navbar() {
     } catch {
       toast.error("Erro ao gerar template.", { id: "cf" });
     }
+  }, [projectName]);
+
+  // ── K8s YAML Export ─────────────────────────────────────────────────────
+
+  const handleExportK8s = useCallback(() => {
+    const state = useFlowStore.getState();
+    const appNodes = state.solutionNodes.map((n) => n.data);
+    const infraNodes = state.nodes.map((n) => n.data);
+    if (appNodes.length === 0) {
+      toast.warning("Adicione componentes na aba Design de Solução antes de exportar K8s.");
+      return;
+    }
+    import("@/domain/services/k8s-export").then(({ generateK8sManifests }) => {
+      const yaml = generateK8sManifests(appNodes, infraNodes);
+      const blob = new Blob([yaml], { type: "text/yaml" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${projectName.replace(/\s+/g, "-").toLowerCase()}-k8s.yaml`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Manifests K8s exportados!");
+    });
   }, [projectName]);
 
   // ── Share URL ──────────────────────────────────────────────────────────
@@ -423,6 +446,18 @@ export function Navbar() {
             </TooltipTrigger>
             <TooltipContent>Exportar CloudFormation</TooltipContent>
           </Tooltip>
+
+          {/* Export K8s YAML */}
+          {solutionNodes.length > 0 && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={handleExportK8s}>
+                  <Cpu className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Exportar K8s YAML</TooltipContent>
+            </Tooltip>
+          )}
 
           {/* Version history */}
           <Tooltip>

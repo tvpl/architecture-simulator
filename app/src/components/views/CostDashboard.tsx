@@ -120,30 +120,40 @@ export function CostDashboard() {
           />
         </div>
 
-        {/* Category breakdown */}
+        {/* Category breakdown with SVG pie chart */}
         <div className="bg-card border border-border rounded-xl p-4">
           <div className="flex items-center gap-2 mb-4">
             <PieChart className="w-4 h-4 text-muted-foreground" />
             <h3 className="text-sm font-semibold">Custo por Categoria</h3>
           </div>
-          <div className="space-y-2">
-            {categoryBreakdown.map(({ category, cost }) => {
-              const pct = totalMonthlyCost > 0 ? (cost / totalMonthlyCost) * 100 : 0;
-              return (
-                <div key={category} className="space-y-1">
-                  <div className="flex justify-between text-xs">
-                    <span className="capitalize text-muted-foreground">{category}</span>
-                    <span className="font-medium">{formatUSD(cost)} ({pct.toFixed(1)}%)</span>
+          <div className="flex gap-6">
+            {/* SVG Pie Chart */}
+            <div className="shrink-0">
+              <MiniPieChart data={categoryBreakdown} total={totalMonthlyCost} />
+            </div>
+            {/* Bar breakdown */}
+            <div className="flex-1 space-y-2">
+              {categoryBreakdown.map(({ category, cost }, i) => {
+                const pct = totalMonthlyCost > 0 ? (cost / totalMonthlyCost) * 100 : 0;
+                return (
+                  <div key={category} className="space-y-1">
+                    <div className="flex justify-between text-xs">
+                      <span className="flex items-center gap-1.5 capitalize text-muted-foreground">
+                        <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
+                        {category}
+                      </span>
+                      <span className="font-medium">{formatUSD(cost)} ({pct.toFixed(1)}%)</span>
+                    </div>
+                    <div className="h-2 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{ width: `${Math.max(pct, 1)}%`, backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }}
+                      />
+                    </div>
                   </div>
-                  <div className="h-2 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-primary/70 rounded-full transition-all"
-                      style={{ width: `${Math.max(pct, 1)}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </div>
 
@@ -200,6 +210,76 @@ function CostRow({ label, typeName, cost }: { label: string; typeName: string; c
         </div>
       </div>
     </div>
+  );
+}
+
+// ── SVG Pie Chart ──────────────────────────────────────────────────────────
+
+const PIE_COLORS = ["#3b82f6", "#8b5cf6", "#f59e0b", "#ef4444", "#10b981", "#ec4899", "#06b6d4", "#f97316"];
+
+function MiniPieChart({ data, total }: { data: { category: string; cost: number }[]; total: number }) {
+  const size = 120;
+  const cx = size / 2;
+  const cy = size / 2;
+  const r = 45;
+
+  if (total === 0) {
+    return (
+      <svg width={size} height={size}>
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke="currentColor" strokeWidth={2} className="text-muted" />
+      </svg>
+    );
+  }
+
+  // Pre-compute slice geometry to avoid mutable state inside .map()
+  const sliceData = data.reduce<{ startAngle: number; endAngle: number; color: string }[]>(
+    (acc, { cost }, i) => {
+      const prevEnd = acc.length > 0 ? acc[acc.length - 1].endAngle : -90;
+      const angle = (cost / total) * 360;
+      acc.push({ startAngle: prevEnd, endAngle: prevEnd + angle, color: PIE_COLORS[i % PIE_COLORS.length] });
+      return acc;
+    },
+    [],
+  );
+
+  const slices = sliceData.map(({ startAngle, endAngle, color }, i) => {
+    if (data.length === 1) {
+      return <circle key={i} cx={cx} cy={cy} r={r} fill={color} />;
+    }
+
+    const startRad = (startAngle * Math.PI) / 180;
+    const endRad = (endAngle * Math.PI) / 180;
+    const x1 = cx + r * Math.cos(startRad);
+    const y1 = cy + r * Math.sin(startRad);
+    const x2 = cx + r * Math.cos(endRad);
+    const y2 = cy + r * Math.sin(endRad);
+    const largeArc = endAngle - startAngle > 180 ? 1 : 0;
+
+    return (
+      <path
+        key={i}
+        d={`M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2} Z`}
+        fill={color}
+        stroke="white"
+        strokeWidth={1}
+        className="dark:stroke-background"
+      />
+    );
+  });
+
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      {slices}
+      {/* Center hole for donut effect */}
+      <circle cx={cx} cy={cy} r={r * 0.55} className="fill-card" />
+      {/* Center text */}
+      <text x={cx} y={cy - 4} textAnchor="middle" className="fill-foreground text-[10px] font-semibold">
+        {formatUSD(total)}
+      </text>
+      <text x={cx} y={cy + 8} textAnchor="middle" className="fill-muted-foreground text-[8px]">
+        /mês
+      </text>
+    </svg>
   );
 }
 

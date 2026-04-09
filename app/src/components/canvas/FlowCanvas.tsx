@@ -27,6 +27,7 @@ import { ServiceNode } from "@/components/nodes/base/ServiceNode";
 import { ContainerNode } from "@/components/nodes/base/ContainerNode";
 import { NoteNode } from "@/components/nodes/base/NoteNode";
 import { AppServiceNode } from "@/components/nodes/app/AppServiceNode";
+import { HostGroupNode, type HostGroupNodeData } from "@/components/nodes/app/HostGroupNode";
 import { ProtocolEdge } from "@/components/edges/ProtocolEdge";
 import { NodeContextMenu, type ContextMenuState } from "./NodeContextMenu";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
@@ -39,6 +40,7 @@ const nodeTypes = {
   "container-node": ContainerNode,
   "note-node": NoteNode,
   "app-service-node": AppServiceNode,
+  "host-group-node": HostGroupNode,
 } as const;
 
 const edgeTypes = {
@@ -244,14 +246,52 @@ export function FlowCanvas() {
     [activeEdges, activeLayer, simStatus]
   );
 
+  // ── Host group nodes (visual containers for L2) ──────────────────────────
+
+  const hostGroupNodes = useMemo(() => {
+    if (!isSolutionLayer) return [];
+    // Build a map of hostId → count of components
+    const hostCounts = new Map<string, number>();
+    for (const n of solutionNodes) {
+      const hid = n.data.hostInfrastructureNodeId;
+      if (hid) hostCounts.set(hid, (hostCounts.get(hid) ?? 0) + 1);
+    }
+    // Create a ghost group node for each host that has components
+    return infraHosts
+      .filter((h) => hostCounts.has(h.id))
+      .map((host, idx) => {
+        // Position groups in a grid layout
+        const col = idx % 3;
+        const row = Math.floor(idx / 3);
+        return {
+          id: `host-group-${host.id}`,
+          type: "host-group-node" as const,
+          position: { x: col * 380, y: row * 320 },
+          draggable: false,
+          selectable: false,
+          data: {
+            hostId: host.id,
+            hostLabel: host.data.label,
+            hostType: host.data.type,
+            childCount: hostCounts.get(host.id) ?? 0,
+          } as HostGroupNodeData,
+          style: { width: 340, height: 280 },
+          zIndex: -1,
+        };
+      });
+  }, [isSolutionLayer, solutionNodes, infraHosts]);
+
   // ── Node type mapping (route note type to note-node renderer) ─────────────
 
   const typedNodes = useMemo(
-    () =>
-      (activeNodes as (FlowNode | AppFlowNode)[]).map((n) =>
+    () => {
+      const mapped = (activeNodes as (FlowNode | AppFlowNode)[]).map((n) =>
         n.data.type === "note" ? { ...n, type: "note-node" } : n
-      ),
-    [activeNodes]
+      );
+      // Prepend host groups so they render behind app nodes
+      return [...hostGroupNodes, ...mapped] as FlowNode[];
+    },
+    [activeNodes, hostGroupNodes]
   );
 
   // ── MiniMap color ────────────────────────────────────────────────────────

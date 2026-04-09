@@ -40,6 +40,13 @@ const consumer: AppComponentDefinition = {
         { kind: "select", key: "memory", label: "Memória", options: [{ value: "256Mi", label: "256 MB" }, { value: "512Mi", label: "512 MB" }, { value: "1Gi", label: "1 GB" }] },
       ],
     },
+    {
+      title: "Limites de Recursos",
+      fields: [
+        { kind: "select", key: "cpuLimit", label: "CPU (Limit)", options: [{ value: "500m", label: "500m (0.5 vCPU)" }, { value: "1000m", label: "1000m (1 vCPU)" }, { value: "2000m", label: "2000m (2 vCPU)" }, { value: "4000m", label: "4000m (4 vCPU)" }], description: "Limite máximo de CPU que o container pode usar. Se ultrapassar, o Kubernetes limita (throttle) o uso de CPU. Deve ser maior ou igual ao CPU Request." },
+        { kind: "select", key: "memoryLimit", label: "Memória (Limit)", options: [{ value: "512Mi", label: "512 MB" }, { value: "1Gi", label: "1 GB" }, { value: "2Gi", label: "2 GB" }, { value: "4Gi", label: "4 GB" }, { value: "8Gi", label: "8 GB" }], description: "Limite máximo de memória que o container pode usar. Se ultrapassar, o container é encerrado (OOMKilled). Deve ser maior ou igual ao Memory Request." },
+      ],
+    },
   ],
 };
 
@@ -79,6 +86,13 @@ const producer: AppComponentDefinition = {
         { kind: "number", key: "replicas", label: "Réplicas", min: 1, max: 20, step: 1 },
         { kind: "select", key: "cpu", label: "CPU", options: [{ value: "250m", label: "250m" }, { value: "500m", label: "500m" }] },
         { kind: "select", key: "memory", label: "Memória", options: [{ value: "256Mi", label: "256 MB" }, { value: "512Mi", label: "512 MB" }] },
+      ],
+    },
+    {
+      title: "Limites de Recursos",
+      fields: [
+        { kind: "select", key: "cpuLimit", label: "CPU (Limit)", options: [{ value: "500m", label: "500m (0.5 vCPU)" }, { value: "1000m", label: "1000m (1 vCPU)" }, { value: "2000m", label: "2000m (2 vCPU)" }, { value: "4000m", label: "4000m (4 vCPU)" }], description: "Limite máximo de CPU que o container pode usar. Se ultrapassar, o Kubernetes limita (throttle) o uso de CPU. Deve ser maior ou igual ao CPU Request." },
+        { kind: "select", key: "memoryLimit", label: "Memória (Limit)", options: [{ value: "512Mi", label: "512 MB" }, { value: "1Gi", label: "1 GB" }, { value: "2Gi", label: "2 GB" }, { value: "4Gi", label: "4 GB" }, { value: "8Gi", label: "8 GB" }], description: "Limite máximo de memória que o container pode usar. Se ultrapassar, o container é encerrado (OOMKilled). Deve ser maior ou igual ao Memory Request." },
       ],
     },
   ],

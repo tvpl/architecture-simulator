@@ -53,6 +53,28 @@ const microservice: AppComponentDefinition = {
         { kind: "select", key: "restartPolicy", label: "Restart Policy", options: [{ value: "Always", label: "Always (recomendado)" }, { value: "OnFailure", label: "OnFailure" }, { value: "Never", label: "Never" }], description: "Quando o container deve ser reiniciado automaticamente" },
       ],
     },
+    {
+      title: "Limites de Recursos",
+      fields: [
+        { kind: "select", key: "cpuLimit", label: "CPU (Limit)", options: [{ value: "250m", label: "250m (0.25 vCPU)" }, { value: "500m", label: "500m (0.5 vCPU)" }, { value: "1000m", label: "1000m (1 vCPU)" }, { value: "2000m", label: "2000m (2 vCPU)" }, { value: "4000m", label: "4000m (4 vCPU)" }], description: "Limite máximo de CPU que o container pode usar. Se ultrapassar, o Kubernetes limita (throttle) o uso de CPU. Deve ser maior ou igual ao CPU Request." },
+        { kind: "select", key: "memoryLimit", label: "Memória (Limit)", options: [{ value: "256Mi", label: "256 MB" }, { value: "512Mi", label: "512 MB" }, { value: "1Gi", label: "1 GB" }, { value: "2Gi", label: "2 GB" }, { value: "4Gi", label: "4 GB" }, { value: "8Gi", label: "8 GB" }], description: "Limite máximo de memória que o container pode usar. Se ultrapassar, o container é encerrado (OOMKilled). Deve ser maior ou igual ao Memory Request." },
+      ],
+    },
+    {
+      title: "Observabilidade",
+      fields: [
+        { kind: "select", key: "logLevel", label: "Nível de Log", options: [{ value: "debug", label: "Debug" }, { value: "info", label: "Info" }, { value: "warn", label: "Warn" }, { value: "error", label: "Error" }], description: "Controla a verbosidade dos logs. Debug mostra tudo (útil para investigar problemas), Info é o padrão para produção, Error mostra apenas erros críticos." },
+        { kind: "switch", key: "metricsEnabled", label: "Métricas Habilitadas", description: "Ativa a exportação de métricas (CPU, memória, requisições) para ferramentas como Prometheus/Grafana. Essencial para monitorar a saúde do serviço em produção." },
+        { kind: "switch", key: "tracingEnabled", label: "Tracing Habilitado", description: "Ativa o rastreamento distribuído (distributed tracing) para acompanhar requisições entre múltiplos serviços. Permite visualizar o caminho completo de uma requisição no sistema." },
+      ],
+    },
+    {
+      title: "Volumes",
+      fields: [
+        { kind: "number", key: "volumeCount", label: "Quantidade de Volumes", min: 0, max: 5, step: 1, description: "Número de volumes persistentes (PersistentVolumeClaim) anexados ao Pod. Volumes mantêm dados mesmo quando o container reinicia, útil para armazenar arquivos temporários ou dados locais." },
+        { kind: "number", key: "volumeSizeGB", label: "Tamanho do Volume (GB)", min: 1, max: 100, step: 1, unit: "GB", description: "Tamanho de cada volume em gigabytes. Volumes maiores custam mais mas permitem armazenar mais dados persistentes." },
+      ],
+    },
   ],
 };
 
@@ -90,6 +112,21 @@ const worker: AppComponentDefinition = {
       fields: [
         { kind: "number", key: "replicas", label: "Réplicas", min: 1, max: 50, step: 1 },
         { kind: "number", key: "concurrency", label: "Concorrência", min: 1, max: 100, step: 1, description: "Quantas tarefas cada réplica processa simultaneamente" },
+      ],
+    },
+    {
+      title: "Limites de Recursos",
+      fields: [
+        { kind: "select", key: "cpuLimit", label: "CPU (Limit)", options: [{ value: "250m", label: "250m (0.25 vCPU)" }, { value: "500m", label: "500m (0.5 vCPU)" }, { value: "1000m", label: "1000m (1 vCPU)" }, { value: "2000m", label: "2000m (2 vCPU)" }, { value: "4000m", label: "4000m (4 vCPU)" }], description: "Limite máximo de CPU que o container pode usar. Se ultrapassar, o Kubernetes limita (throttle) o uso de CPU. Deve ser maior ou igual ao CPU Request." },
+        { kind: "select", key: "memoryLimit", label: "Memória (Limit)", options: [{ value: "256Mi", label: "256 MB" }, { value: "512Mi", label: "512 MB" }, { value: "1Gi", label: "1 GB" }, { value: "2Gi", label: "2 GB" }, { value: "4Gi", label: "4 GB" }, { value: "8Gi", label: "8 GB" }], description: "Limite máximo de memória que o container pode usar. Se ultrapassar, o container é encerrado (OOMKilled). Deve ser maior ou igual ao Memory Request." },
+      ],
+    },
+    {
+      title: "Observabilidade",
+      fields: [
+        { kind: "select", key: "logLevel", label: "Nível de Log", options: [{ value: "debug", label: "Debug" }, { value: "info", label: "Info" }, { value: "warn", label: "Warn" }, { value: "error", label: "Error" }], description: "Controla a verbosidade dos logs. Debug mostra tudo (útil para investigar problemas), Info é o padrão para produção, Error mostra apenas erros críticos." },
+        { kind: "switch", key: "metricsEnabled", label: "Métricas Habilitadas", description: "Ativa a exportação de métricas (CPU, memória, requisições) para ferramentas como Prometheus/Grafana. Essencial para monitorar a saúde do serviço em produção." },
+        { kind: "switch", key: "tracingEnabled", label: "Tracing Habilitado", description: "Ativa o rastreamento distribuído (distributed tracing) para acompanhar requisições entre múltiplos serviços. Permite visualizar o caminho completo de uma requisição no sistema." },
       ],
     },
   ],
@@ -139,6 +176,28 @@ const api: AppComponentDefinition = {
         { kind: "switch", key: "corsEnabled", label: "CORS Habilitado", description: "Permite requisições de origens diferentes (necessário para frontends web)" },
       ],
     },
+    {
+      title: "Limites de Recursos",
+      fields: [
+        { kind: "select", key: "cpuLimit", label: "CPU (Limit)", options: [{ value: "500m", label: "500m (0.5 vCPU)" }, { value: "1000m", label: "1000m (1 vCPU)" }, { value: "2000m", label: "2000m (2 vCPU)" }, { value: "4000m", label: "4000m (4 vCPU)" }], description: "Limite máximo de CPU que o container pode usar. Se ultrapassar, o Kubernetes limita (throttle) o uso de CPU. Deve ser maior ou igual ao CPU Request." },
+        { kind: "select", key: "memoryLimit", label: "Memória (Limit)", options: [{ value: "512Mi", label: "512 MB" }, { value: "1Gi", label: "1 GB" }, { value: "2Gi", label: "2 GB" }, { value: "4Gi", label: "4 GB" }, { value: "8Gi", label: "8 GB" }], description: "Limite máximo de memória que o container pode usar. Se ultrapassar, o container é encerrado (OOMKilled). Deve ser maior ou igual ao Memory Request." },
+      ],
+    },
+    {
+      title: "Observabilidade",
+      fields: [
+        { kind: "select", key: "logLevel", label: "Nível de Log", options: [{ value: "debug", label: "Debug" }, { value: "info", label: "Info" }, { value: "warn", label: "Warn" }, { value: "error", label: "Error" }], description: "Controla a verbosidade dos logs. Debug mostra tudo (útil para investigar problemas), Info é o padrão para produção, Error mostra apenas erros críticos." },
+        { kind: "switch", key: "metricsEnabled", label: "Métricas Habilitadas", description: "Ativa a exportação de métricas (CPU, memória, requisições) para ferramentas como Prometheus/Grafana. Essencial para monitorar a saúde do serviço em produção." },
+        { kind: "switch", key: "tracingEnabled", label: "Tracing Habilitado", description: "Ativa o rastreamento distribuído (distributed tracing) para acompanhar requisições entre múltiplos serviços. Permite visualizar o caminho completo de uma requisição no sistema." },
+      ],
+    },
+    {
+      title: "Volumes",
+      fields: [
+        { kind: "number", key: "volumeCount", label: "Quantidade de Volumes", min: 0, max: 5, step: 1, description: "Número de volumes persistentes (PersistentVolumeClaim) anexados ao Pod. Volumes mantêm dados mesmo quando o container reinicia, útil para armazenar arquivos temporários ou dados locais." },
+        { kind: "number", key: "volumeSizeGB", label: "Tamanho do Volume (GB)", min: 1, max: 100, step: 1, unit: "GB", description: "Tamanho de cada volume em gigabytes. Volumes maiores custam mais mas permitem armazenar mais dados persistentes." },
+      ],
+    },
   ],
 };
 
@@ -177,6 +236,21 @@ const batchProcessor: AppComponentDefinition = {
       fields: [
         { kind: "select", key: "cpu", label: "CPU", options: [{ value: "500m", label: "500m" }, { value: "1000m", label: "1000m" }, { value: "2000m", label: "2000m" }] },
         { kind: "select", key: "memory", label: "Memória", options: [{ value: "512Mi", label: "512 MB" }, { value: "1Gi", label: "1 GB" }, { value: "2Gi", label: "2 GB" }, { value: "4Gi", label: "4 GB" }] },
+      ],
+    },
+    {
+      title: "Limites de Recursos",
+      fields: [
+        { kind: "select", key: "cpuLimit", label: "CPU (Limit)", options: [{ value: "1000m", label: "1000m (1 vCPU)" }, { value: "2000m", label: "2000m (2 vCPU)" }, { value: "4000m", label: "4000m (4 vCPU)" }, { value: "8000m", label: "8000m (8 vCPU)" }], description: "Limite máximo de CPU que o container pode usar. Se ultrapassar, o Kubernetes limita (throttle) o uso de CPU. Deve ser maior ou igual ao CPU Request." },
+        { kind: "select", key: "memoryLimit", label: "Memória (Limit)", options: [{ value: "1Gi", label: "1 GB" }, { value: "2Gi", label: "2 GB" }, { value: "4Gi", label: "4 GB" }, { value: "8Gi", label: "8 GB" }, { value: "16Gi", label: "16 GB" }], description: "Limite máximo de memória que o container pode usar. Se ultrapassar, o container é encerrado (OOMKilled). Deve ser maior ou igual ao Memory Request." },
+      ],
+    },
+    {
+      title: "Observabilidade",
+      fields: [
+        { kind: "select", key: "logLevel", label: "Nível de Log", options: [{ value: "debug", label: "Debug" }, { value: "info", label: "Info" }, { value: "warn", label: "Warn" }, { value: "error", label: "Error" }], description: "Controla a verbosidade dos logs. Debug mostra tudo (útil para investigar problemas), Info é o padrão para produção, Error mostra apenas erros críticos." },
+        { kind: "switch", key: "metricsEnabled", label: "Métricas Habilitadas", description: "Ativa a exportação de métricas (CPU, memória, requisições) para ferramentas como Prometheus/Grafana. Essencial para monitorar a saúde do serviço em produção." },
+        { kind: "switch", key: "tracingEnabled", label: "Tracing Habilitado", description: "Ativa o rastreamento distribuído (distributed tracing) para acompanhar requisições entre múltiplos serviços. Permite visualizar o caminho completo de uma requisição no sistema." },
       ],
     },
   ],

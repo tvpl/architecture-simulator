@@ -45,6 +45,20 @@ const cronjob: AppComponentDefinition = {
         { kind: "select", key: "memory", label: "Memória", options: [{ value: "256Mi", label: "256 MB" }, { value: "512Mi", label: "512 MB" }, { value: "1Gi", label: "1 GB" }] },
       ],
     },
+    {
+      title: "Limites de Recursos",
+      fields: [
+        { kind: "select", key: "cpuLimit", label: "CPU (Limit)", options: [{ value: "500m", label: "500m (0.5 vCPU)" }, { value: "1000m", label: "1000m (1 vCPU)" }, { value: "2000m", label: "2000m (2 vCPU)" }], description: "Limite máximo de CPU. Se ultrapassar, o Kubernetes aplica throttle. Deve ser >= CPU Request." },
+        { kind: "select", key: "memoryLimit", label: "Memória (Limit)", options: [{ value: "512Mi", label: "512 MB" }, { value: "1Gi", label: "1 GB" }, { value: "2Gi", label: "2 GB" }, { value: "4Gi", label: "4 GB" }], description: "Limite máximo de memória. Se ultrapassar, o container é encerrado (OOMKilled)." },
+      ],
+    },
+    {
+      title: "Observabilidade",
+      fields: [
+        { kind: "select", key: "logLevel", label: "Nível de Log", options: [{ value: "debug", label: "Debug" }, { value: "info", label: "Info" }, { value: "warn", label: "Warn" }, { value: "error", label: "Error" }], description: "Controla a verbosidade dos logs do CronJob." },
+        { kind: "switch", key: "metricsEnabled", label: "Métricas Habilitadas", description: "Exporta métricas de execução (duração, sucesso/falha) para Prometheus/Grafana." },
+      ],
+    },
   ],
 };
 

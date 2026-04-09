@@ -24,6 +24,13 @@ const databaseClient: AppComponentDefinition = {
         { kind: "number", key: "retryAttempts", label: "Tentativas de Retry", min: 0, max: 10, step: 1, description: "Quantas vezes retentar em caso de falha temporária" },
       ],
     },
+    {
+      title: "Observabilidade",
+      fields: [
+        { kind: "switch", key: "metricsEnabled", label: "Métricas de Conexão", description: "Exporta métricas do pool de conexões (ativas, idle, erros) para monitoramento." },
+        { kind: "switch", key: "slowQueryLog", label: "Log de Queries Lentas", description: "Registra queries que excedem o threshold de tempo para análise de performance." },
+      ],
+    },
   ],
 };
 
@@ -48,6 +55,12 @@ const cacheClient: AppComponentDefinition = {
         { kind: "number", key: "connectionPoolSize", label: "Pool de Conexões", min: 1, max: 100, step: 1 },
         { kind: "number", key: "timeoutMs", label: "Timeout (ms)", min: 10, max: 10000, step: 10, unit: "ms" },
         { kind: "number", key: "ttlSeconds", label: "TTL Padrão (s)", min: 1, max: 86400, step: 1, unit: "s", description: "Tempo padrão que um dado fica no cache antes de expirar" },
+      ],
+    },
+    {
+      title: "Observabilidade",
+      fields: [
+        { kind: "switch", key: "metricsEnabled", label: "Métricas de Cache", description: "Exporta métricas de hit/miss ratio, latência e pool de conexões." },
       ],
     },
   ],

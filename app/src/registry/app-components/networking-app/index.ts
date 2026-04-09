@@ -31,6 +31,20 @@ const sidecar: AppComponentDefinition = {
         { kind: "select", key: "memory", label: "Memória", options: [{ value: "64Mi", label: "64 MB" }, { value: "128Mi", label: "128 MB" }, { value: "256Mi", label: "256 MB" }] },
       ],
     },
+    {
+      title: "Limites de Recursos",
+      fields: [
+        { kind: "select", key: "cpuLimit", label: "CPU (Limit)", options: [{ value: "100m", label: "100m" }, { value: "250m", label: "250m" }, { value: "500m", label: "500m" }], description: "Limite máximo de CPU para o sidecar. Sidecars devem consumir poucos recursos para não impactar o container principal." },
+        { kind: "select", key: "memoryLimit", label: "Memória (Limit)", options: [{ value: "128Mi", label: "128 MB" }, { value: "256Mi", label: "256 MB" }, { value: "512Mi", label: "512 MB" }], description: "Limite máximo de memória para o sidecar." },
+      ],
+    },
+    {
+      title: "Observabilidade",
+      fields: [
+        { kind: "switch", key: "metricsEnabled", label: "Métricas Habilitadas", description: "Exporta métricas do sidecar (throughput, latência, erros) para Prometheus." },
+        { kind: "switch", key: "accessLog", label: "Access Log", description: "Registra todas as requisições que passam pelo sidecar proxy." },
+      ],
+    },
   ],
 };
 
@@ -61,6 +75,21 @@ const ingressController: AppComponentDefinition = {
         { kind: "number", key: "replicas", label: "Réplicas", min: 1, max: 10, step: 1 },
         { kind: "select", key: "cpu", label: "CPU", options: [{ value: "100m", label: "100m" }, { value: "250m", label: "250m" }, { value: "500m", label: "500m" }] },
         { kind: "select", key: "memory", label: "Memória", options: [{ value: "128Mi", label: "128 MB" }, { value: "256Mi", label: "256 MB" }, { value: "512Mi", label: "512 MB" }] },
+      ],
+    },
+    {
+      title: "Limites de Recursos",
+      fields: [
+        { kind: "select", key: "cpuLimit", label: "CPU (Limit)", options: [{ value: "250m", label: "250m" }, { value: "500m", label: "500m (0.5 vCPU)" }, { value: "1000m", label: "1000m (1 vCPU)" }], description: "Limite máximo de CPU para o ingress controller." },
+        { kind: "select", key: "memoryLimit", label: "Memória (Limit)", options: [{ value: "256Mi", label: "256 MB" }, { value: "512Mi", label: "512 MB" }, { value: "1Gi", label: "1 GB" }], description: "Limite máximo de memória para o ingress controller." },
+      ],
+    },
+    {
+      title: "Observabilidade",
+      fields: [
+        { kind: "select", key: "logLevel", label: "Nível de Log", options: [{ value: "debug", label: "Debug" }, { value: "info", label: "Info" }, { value: "warn", label: "Warn" }, { value: "error", label: "Error" }], description: "Verbosidade dos logs do ingress controller." },
+        { kind: "switch", key: "metricsEnabled", label: "Métricas Habilitadas", description: "Exporta métricas de tráfego (requests/s, latência, códigos de status) para monitoramento." },
+        { kind: "switch", key: "accessLog", label: "Access Log", description: "Registra todas as requisições HTTP que passam pelo ingress." },
       ],
     },
   ],
@@ -103,6 +132,21 @@ const gateway: AppComponentDefinition = {
         { kind: "number", key: "replicas", label: "Réplicas", min: 1, max: 20, step: 1 },
         { kind: "select", key: "cpu", label: "CPU", options: [{ value: "250m", label: "250m" }, { value: "500m", label: "500m" }, { value: "1000m", label: "1000m" }] },
         { kind: "select", key: "memory", label: "Memória", options: [{ value: "256Mi", label: "256 MB" }, { value: "512Mi", label: "512 MB" }, { value: "1Gi", label: "1 GB" }] },
+      ],
+    },
+    {
+      title: "Limites de Recursos",
+      fields: [
+        { kind: "select", key: "cpuLimit", label: "CPU (Limit)", options: [{ value: "500m", label: "500m (0.5 vCPU)" }, { value: "1000m", label: "1000m (1 vCPU)" }, { value: "2000m", label: "2000m (2 vCPU)" }, { value: "4000m", label: "4000m (4 vCPU)" }], description: "Limite máximo de CPU que o container pode usar. Se ultrapassar, o Kubernetes limita (throttle) o uso de CPU. Deve ser maior ou igual ao CPU Request." },
+        { kind: "select", key: "memoryLimit", label: "Memória (Limit)", options: [{ value: "512Mi", label: "512 MB" }, { value: "1Gi", label: "1 GB" }, { value: "2Gi", label: "2 GB" }, { value: "4Gi", label: "4 GB" }, { value: "8Gi", label: "8 GB" }], description: "Limite máximo de memória que o container pode usar. Se ultrapassar, o container é encerrado (OOMKilled). Deve ser maior ou igual ao Memory Request." },
+      ],
+    },
+    {
+      title: "Observabilidade",
+      fields: [
+        { kind: "select", key: "logLevel", label: "Nível de Log", options: [{ value: "debug", label: "Debug" }, { value: "info", label: "Info" }, { value: "warn", label: "Warn" }, { value: "error", label: "Error" }], description: "Controla a verbosidade dos logs. Debug mostra tudo (útil para investigar problemas), Info é o padrão para produção, Error mostra apenas erros críticos." },
+        { kind: "switch", key: "metricsEnabled", label: "Métricas Habilitadas", description: "Ativa a exportação de métricas (CPU, memória, requisições) para ferramentas como Prometheus/Grafana. Essencial para monitorar a saúde do serviço em produção." },
+        { kind: "switch", key: "tracingEnabled", label: "Tracing Habilitado", description: "Ativa o rastreamento distribuído (distributed tracing) para acompanhar requisições entre múltiplos serviços. Permite visualizar o caminho completo de uma requisição no sistema." },
       ],
     },
   ],
