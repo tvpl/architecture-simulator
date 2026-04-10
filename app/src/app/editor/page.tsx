@@ -12,6 +12,7 @@ import { ValidationPanel } from "@/components/panels/ValidationPanel";
 import { WhatIfPanel } from "@/components/panels/WhatIfPanel";
 import { CostDashboard } from "@/components/views/CostDashboard";
 import { SimulationView } from "@/components/views/SimulationView";
+import { CommandPalette } from "@/components/dialogs/CommandPalette";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { useFlowStore } from "@/stores/flow-store";
 import { useUIStore } from "@/stores/ui-store";
@@ -66,6 +67,7 @@ export default function EditorPage() {
   return (
     <ReactFlowProvider>
       <HashImporter />
+      <CommandPalette />
       <div className="h-full flex flex-col overflow-hidden">
         <Navbar />
         <div className="flex flex-1 min-h-0 relative">

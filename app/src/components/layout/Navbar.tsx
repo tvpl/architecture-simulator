@@ -1,5 +1,6 @@
 "use client";
-import React, { useRef, useCallback, useState, useEffect } from "react";
+import React, { useRef, useCallback, useState } from "react";
+import { motion } from "framer-motion";
 import {
   Play,
   Square,
@@ -24,12 +25,22 @@ import {
   Calculator,
   PanelRight,
   Eye,
-  CheckCircle2,
+  Command,
 } from "lucide-react";
 import { TemplatesDialog } from "@/components/dialogs/TemplatesDialog";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { LayerSwitcher } from "./LayerSwitcher";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+  DropdownMenuCheckboxItem,
+  DropdownMenuShortcut,
+} from "@/components/ui/dropdown-menu";
 import { useFlowStore, selectDomainNodes, selectDomainEdges, useTemporalFlowStore } from "@/stores/flow-store";
 import { useSimulationStore } from "@/stores/simulation-store";
 import { useUIStore } from "@/stores/ui-store";
@@ -37,102 +48,7 @@ import { useThemeStore } from "@/stores/theme-store";
 import { useHistoryStore } from "@/stores/history-store";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-
-// ── NavDropdown ───────────────────────────────────────────────────────────────
-
-interface DropdownItem {
-  icon: React.ReactNode;
-  label: string;
-  sublabel?: string;
-  shortcut?: string;
-  active?: boolean;
-  danger?: boolean;
-  separator?: boolean;
-  onClick: () => void;
-}
-
-function NavDropdown({
-  trigger,
-  items,
-  align = "right",
-}: {
-  trigger: React.ReactNode;
-  items: DropdownItem[];
-  align?: "left" | "right";
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handle = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("mousedown", handle);
-    document.addEventListener("keydown", handleKey);
-    return () => {
-      document.removeEventListener("mousedown", handle);
-      document.removeEventListener("keydown", handleKey);
-    };
-  }, [open]);
-
-  return (
-    <div ref={ref} className="relative">
-      <div onClick={() => setOpen((p) => !p)}>{trigger}</div>
-      {open && (
-        <div
-          className={cn(
-            "absolute top-full mt-1.5 z-50 min-w-[200px] bg-background border border-border rounded-xl shadow-xl overflow-hidden py-1.5",
-            align === "right" ? "right-0" : "left-0"
-          )}
-        >
-          {items.map((item, i) =>
-            item.separator ? (
-              <div key={i} className="my-1 border-t border-border/60" />
-            ) : (
-              <button
-                key={i}
-                onClick={() => {
-                  item.onClick();
-                  setOpen(false);
-                }}
-                className={cn(
-                  "w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors text-left",
-                  item.danger
-                    ? "text-destructive hover:bg-destructive/10"
-                    : item.active
-                    ? "bg-primary/8 text-primary font-medium"
-                    : "text-foreground hover:bg-muted/70"
-                )}
-              >
-                <span className={cn("shrink-0", item.active ? "text-primary" : "text-muted-foreground")}>
-                  {item.icon}
-                </span>
-                <span className="flex-1 truncate">{item.label}</span>
-                {item.sublabel && (
-                  <span className="text-[10px] text-muted-foreground">{item.sublabel}</span>
-                )}
-                {item.shortcut && (
-                  <kbd className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded border border-border font-mono ml-auto">
-                    {item.shortcut}
-                  </kbd>
-                )}
-                {item.active && !item.shortcut && (
-                  <CheckCircle2 className="w-3.5 h-3.5 text-primary shrink-0 ml-auto" />
-                )}
-              </button>
-            )
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Navbar ────────────────────────────────────────────────────────────────────
+import { useCommandPaletteStore } from "@/stores/command-palette-store";
 
 export function Navbar() {
   const importRef = useRef<HTMLInputElement>(null);
@@ -157,14 +73,15 @@ export function Navbar() {
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const { theme, toggleTheme } = useThemeStore();
   const { toggleHistoryPanel } = useHistoryStore();
+  const { open: openCommandPalette } = useCommandPaletteStore();
 
-  // ── Undo / Redo ────────────────────────────────────────────────────────────
   const canUndo = useTemporalFlowStore((s) => s.pastStates.length > 0);
   const canRedo = useTemporalFlowStore((s) => s.futureStates.length > 0);
   const undo = useTemporalFlowStore((s) => s.undo);
   const redo = useTemporalFlowStore((s) => s.redo);
 
   const isSimulating = status === "running";
+  const isComplete = status === "complete";
 
   // ── Simulation ─────────────────────────────────────────────────────────────
 
@@ -191,11 +108,11 @@ export function Navbar() {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const result = await response.json();
       setResult(result);
-      toast.success("Simulação concluída com sucesso!", { id: "sim" });
+      toast.success("Simulação concluída!", { id: "sim" });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Erro ao simular";
       setError(msg);
-      toast.error(`Falha na simulação: ${msg}`, { id: "sim" });
+      toast.error(`Falha: ${msg}`, { id: "sim" });
     }
   }, [setRunning, setResult, setError, openSimulationPanel]);
 
@@ -211,15 +128,13 @@ export function Navbar() {
       a.download = `${projectName.replace(/\s+/g, "-").toLowerCase()}-${Date.now()}.json`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success("JSON exportado com sucesso.");
+      toast.success("JSON exportado.");
     } catch {
       toast.error("Erro ao exportar JSON.");
     }
   }, [exportProject, projectName]);
 
-  const handleImportJson = useCallback(() => {
-    importRef.current?.click();
-  }, []);
+  const handleImportJson = useCallback(() => importRef.current?.click(), []);
 
   const handleFileChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -228,11 +143,10 @@ export function Navbar() {
       const reader = new FileReader();
       reader.onload = (evt) => {
         try {
-          const data = JSON.parse(evt.target?.result as string);
-          importProject(data);
-          toast.success("Projeto importado com sucesso.");
+          importProject(JSON.parse(evt.target?.result as string));
+          toast.success("Projeto importado.");
         } catch {
-          toast.error("Arquivo JSON inválido ou corrompido.");
+          toast.error("Arquivo inválido ou corrompido.");
         }
       };
       reader.readAsText(file);
@@ -245,16 +159,13 @@ export function Navbar() {
     try {
       const { toPng } = await import("html-to-image");
       const viewport = document.querySelector<HTMLElement>(".react-flow__viewport");
-      if (!viewport) {
-        toast.error("Nenhum diagrama encontrado para exportar.");
-        return;
-      }
-      const dataUrl = await toPng(viewport);
+      if (!viewport) { toast.error("Nenhum diagrama encontrado."); return; }
+      const dataUrl = await toPng(viewport, { pixelRatio: 2 });
       const a = document.createElement("a");
       a.href = dataUrl;
       a.download = `arquitetura-${Date.now()}.png`;
       a.click();
-      toast.success("Imagem exportada com sucesso.");
+      toast.success("Imagem exportada (2x).");
     } catch {
       toast.error("Erro ao exportar imagem.");
     }
@@ -271,11 +182,8 @@ export function Navbar() {
   const handleExportCloudFormation = useCallback(async () => {
     const domainNodes = selectDomainNodes(useFlowStore.getState());
     const domainEdges = selectDomainEdges(useFlowStore.getState());
-    if (domainNodes.length === 0) {
-      toast.warning("Adicione pelo menos um componente ao diagrama antes de exportar.");
-      return;
-    }
-    toast.loading("Gerando template CloudFormation...", { id: "cf" });
+    if (domainNodes.length === 0) { toast.warning("Adicione componentes primeiro."); return; }
+    toast.loading("Gerando CloudFormation...", { id: "cf" });
     try {
       const res = await fetch("/api/export/cloudformation", {
         method: "POST",
@@ -290,7 +198,7 @@ export function Navbar() {
       a.download = `${projectName.replace(/\s+/g, "-").toLowerCase()}-cloudformation.json`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success("Template CloudFormation exportado!", { id: "cf" });
+      toast.success("CloudFormation exportado!", { id: "cf" });
     } catch {
       toast.error("Erro ao gerar template.", { id: "cf" });
     }
@@ -300,10 +208,7 @@ export function Navbar() {
     const state = useFlowStore.getState();
     const appNodes = state.solutionNodes.map((n) => n.data);
     const infraNodes = state.nodes.map((n) => n.data);
-    if (appNodes.length === 0) {
-      toast.warning("Adicione componentes na aba Design de Solução antes de exportar K8s.");
-      return;
-    }
+    if (appNodes.length === 0) { toast.warning("Adicione componentes L2 primeiro."); return; }
     import("@/domain/services/k8s-export").then(({ generateK8sManifests }) => {
       const yaml = generateK8sManifests(appNodes, infraNodes);
       const blob = new Blob([yaml], { type: "text/yaml" });
@@ -313,326 +218,294 @@ export function Navbar() {
       a.download = `${projectName.replace(/\s+/g, "-").toLowerCase()}-k8s.yaml`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success("Manifests K8s exportados!");
+      toast.success("K8s manifests exportados!");
     });
   }, [projectName]);
 
   const handleShare = useCallback(() => {
     try {
       const data = exportProject();
-      const json = JSON.stringify(data);
-      const encoded = btoa(encodeURIComponent(json));
+      const encoded = btoa(encodeURIComponent(JSON.stringify(data)));
       const url = `${window.location.origin}${window.location.pathname}#${encoded}`;
-      navigator.clipboard.writeText(url).then(() => {
-        toast.success("Link copiado para a área de transferência!");
-      });
+      navigator.clipboard.writeText(url).then(() => toast.success("Link copiado!"));
     } catch {
-      toast.error("Erro ao gerar link compartilhável.");
+      toast.error("Erro ao gerar link.");
     }
   }, [exportProject]);
 
-  // ── Dropdown item definitions ──────────────────────────────────────────────
-
-  const exportItems: DropdownItem[] = [
-    {
-      icon: <Link className="w-3.5 h-3.5" />,
-      label: "Copiar link",
-      sublabel: "URL compartilhável",
-      onClick: handleShare,
-    },
-    { separator: true, icon: null!, label: "", onClick: () => {} },
-    {
-      icon: <Download className="w-3.5 h-3.5" />,
-      label: "Exportar JSON",
-      shortcut: "Ctrl+S",
-      onClick: handleExportJson,
-    },
-    {
-      icon: <Upload className="w-3.5 h-3.5" />,
-      label: "Importar JSON",
-      onClick: handleImportJson,
-    },
-    { separator: true, icon: null!, label: "", onClick: () => {} },
-    {
-      icon: <ImageDown className="w-3.5 h-3.5" />,
-      label: "Exportar imagem",
-      sublabel: "PNG",
-      onClick: handleExportImage,
-    },
-    {
-      icon: <FileCode2 className="w-3.5 h-3.5" />,
-      label: "CloudFormation",
-      sublabel: "JSON template",
-      onClick: handleExportCloudFormation,
-    },
-    ...(solutionNodes.length > 0
-      ? [
-          {
-            icon: <Cpu className="w-3.5 h-3.5" />,
-            label: "K8s Manifests",
-            sublabel: "YAML",
-            onClick: handleExportK8s,
-          } as DropdownItem,
-        ]
-      : []),
-  ];
-
-  const viewItems: DropdownItem[] = [
-    {
-      icon: <LayoutGrid className="w-3.5 h-3.5" />,
-      label: "Auto-organizar",
-      sublabel: "Dagre layout",
-      onClick: () => requestAutoLayout("TB"),
-    },
-    { separator: true, icon: null!, label: "", onClick: () => {} },
-    {
-      icon: <Grid3x3 className="w-3.5 h-3.5" />,
-      label: "Grade (snap)",
-      active: snapToGrid,
-      onClick: toggleSnapToGrid,
-    },
-    {
-      icon: <Presentation className="w-3.5 h-3.5" />,
-      label: "Modo apresentação",
-      active: presentationMode,
-      onClick: togglePresentationMode,
-    },
-  ];
-
-  const panelsItems: DropdownItem[] = [
-    {
-      icon: <LayoutTemplate className="w-3.5 h-3.5" />,
-      label: "Templates",
-      onClick: () => setTemplatesOpen(true),
-    },
-    {
-      icon: <History className="w-3.5 h-3.5" />,
-      label: "Histórico",
-      onClick: toggleHistoryPanel,
-    },
-    { separator: true, icon: null!, label: "", onClick: () => {} },
-    {
-      icon: <ShieldAlert className="w-3.5 h-3.5" />,
-      label: "Validação",
-      active: validationPanelOpen,
-      onClick: toggleValidationPanel,
-    },
-    {
-      icon: <Calculator className="w-3.5 h-3.5" />,
-      label: "Análise What-if",
-      active: whatIfPanelOpen,
-      onClick: toggleWhatIfPanel,
-    },
-    { separator: true, icon: null!, label: "", onClick: () => {} },
-    {
-      icon: <RotateCcw className="w-3.5 h-3.5" />,
-      label: "Limpar canvas",
-      danger: true,
-      onClick: handleClear,
-    },
-  ];
-
   return (
-    <TooltipProvider delayDuration={300}>
-      <nav className="h-14 flex items-center justify-between px-4 border-b border-border bg-background/95 backdrop-blur-sm z-10 shrink-0">
-        {/* Left: brand + project name */}
+    <TooltipProvider delayDuration={400}>
+      <nav className="h-14 flex items-center justify-between px-4 border-b border-border glass z-10 shrink-0">
+        {/* ── Left: brand + project name ──────────────────────────────────── */}
         <div className="flex items-center gap-3 min-w-0">
-          <div className="flex items-center gap-2 shrink-0">
-            <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center shadow-sm">
+          <motion.div
+            className="flex items-center gap-2 shrink-0"
+            initial={{ opacity: 0, x: -8 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center shadow-sm ring-1 ring-primary/20">
               <Cpu className="w-4 h-4 text-primary-foreground" />
             </div>
-            <span className="font-semibold text-sm text-foreground hidden sm:block">
+            <span className="font-bold text-sm tracking-tight hidden sm:block">
               AWS Architect
             </span>
-          </div>
+          </motion.div>
+
           <div className="h-5 w-px bg-border hidden sm:block shrink-0" />
+
           <input
-            className="text-sm font-medium bg-transparent border-none outline-none text-muted-foreground hover:text-foreground focus:text-foreground w-40 truncate"
+            className="text-sm font-medium bg-transparent border-none outline-none text-muted-foreground hover:text-foreground focus:text-foreground w-40 truncate transition-colors"
             value={projectName}
             onChange={(e) => setProjectName(e.target.value)}
             placeholder="Nome do projeto..."
           />
         </div>
 
-        {/* Center: layer switcher */}
+        {/* ── Center: layer switcher ───────────────────────────────────────── */}
         <div className="absolute left-1/2 -translate-x-1/2">
           <LayerSwitcher />
         </div>
 
-        {/* Right: actions */}
+        {/* ── Right: actions ───────────────────────────────────────────────── */}
         <div className="flex items-center gap-1 shrink-0">
+          {/* Command palette shortcut */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 h-8 px-2.5 text-muted-foreground hidden md:flex"
+                onClick={openCommandPalette}
+              >
+                <Command className="w-3.5 h-3.5" />
+                <span className="text-xs">Buscar</span>
+                <kbd className="text-[9px] font-mono bg-muted px-1 py-0.5 rounded border border-border ml-1">
+                  ⌘K
+                </kbd>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Command palette (Ctrl+K)</TooltipContent>
+          </Tooltip>
+
+          <div className="h-5 w-px bg-border mx-0.5 hidden md:block" />
+
           {/* Undo / Redo */}
-          <div className="flex items-center gap-0.5 bg-muted/50 rounded-lg p-0.5">
+          <div className="flex items-center gap-0.5 bg-muted/60 rounded-lg p-0.5">
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-7 w-7 rounded-md"
-                  onClick={() => undo()}
-                  disabled={!canUndo}
-                >
+                <Button size="icon" variant="ghost" className="h-7 w-7 rounded-md" onClick={() => undo()} disabled={!canUndo}>
                   <Undo2 className="w-3.5 h-3.5" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Desfazer (Ctrl+Z)</TooltipContent>
+              <TooltipContent>Desfazer <DropdownMenuShortcut className="ml-1">Ctrl+Z</DropdownMenuShortcut></TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-7 w-7 rounded-md"
-                  onClick={() => redo()}
-                  disabled={!canRedo}
-                >
+                <Button size="icon" variant="ghost" className="h-7 w-7 rounded-md" onClick={() => redo()} disabled={!canRedo}>
                   <Redo2 className="w-3.5 h-3.5" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Refazer (Ctrl+Y)</TooltipContent>
+              <TooltipContent>Refazer <DropdownMenuShortcut className="ml-1">Ctrl+Y</DropdownMenuShortcut></TooltipContent>
             </Tooltip>
           </div>
 
           <div className="h-5 w-px bg-border mx-0.5" />
 
-          {/* Export dropdown */}
-          <NavDropdown
-            align="right"
-            trigger={
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="gap-1.5 h-8 text-xs px-2.5"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    <span className="hidden md:inline">Exportar</span>
-                    <ChevronDown className="w-3 h-3 text-muted-foreground" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Opções de exportação e importação</TooltipContent>
-              </Tooltip>
-            }
-            items={exportItems}
-          />
+          {/* ── Export dropdown ──────────────────────────────────────────── */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline" className="gap-1.5 h-8 text-xs px-2.5">
+                <Download className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">Exportar</span>
+                <ChevronDown className="w-3 h-3 text-muted-foreground" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuLabel>Compartilhar</DropdownMenuLabel>
+              <DropdownMenuItem onClick={handleShare}>
+                <Link className="w-3.5 h-3.5 text-muted-foreground" />
+                Copiar link
+                <DropdownMenuShortcut>URL</DropdownMenuShortcut>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Projeto</DropdownMenuLabel>
+              <DropdownMenuItem onClick={handleExportJson}>
+                <Download className="w-3.5 h-3.5 text-muted-foreground" />
+                Salvar JSON
+                <DropdownMenuShortcut>Ctrl+S</DropdownMenuShortcut>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleImportJson}>
+                <Upload className="w-3.5 h-3.5 text-muted-foreground" />
+                Abrir JSON
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Exportar como</DropdownMenuLabel>
+              <DropdownMenuItem onClick={handleExportImage}>
+                <ImageDown className="w-3.5 h-3.5 text-muted-foreground" />
+                Imagem PNG
+                <DropdownMenuShortcut>2×</DropdownMenuShortcut>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportCloudFormation} disabled={nodes.length === 0}>
+                <FileCode2 className="w-3.5 h-3.5 text-muted-foreground" />
+                CloudFormation
+              </DropdownMenuItem>
+              {solutionNodes.length > 0 && (
+                <DropdownMenuItem onClick={handleExportK8s}>
+                  <Cpu className="w-3.5 h-3.5 text-muted-foreground" />
+                  K8s Manifests
+                  <DropdownMenuShortcut>YAML</DropdownMenuShortcut>
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-          {/* View dropdown */}
-          <NavDropdown
-            align="right"
-            trigger={
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className={cn(
-                      "gap-1.5 h-8 text-xs px-2.5",
-                      (snapToGrid || presentationMode) && "text-primary border-primary/40 bg-primary/5"
-                    )}
-                  >
-                    <Eye className="w-3.5 h-3.5" />
-                    <span className="hidden md:inline">Visão</span>
-                    <ChevronDown className="w-3 h-3 text-muted-foreground" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Configurações de visualização</TooltipContent>
-              </Tooltip>
-            }
-            items={viewItems}
-          />
+          {/* ── View dropdown ────────────────────────────────────────────── */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                size="sm"
+                variant="outline"
+                className={cn(
+                  "gap-1.5 h-8 text-xs px-2.5",
+                  (snapToGrid || presentationMode) && "text-primary border-primary/40 bg-primary/5"
+                )}
+              >
+                <Eye className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">Visão</span>
+                <ChevronDown className="w-3 h-3 text-muted-foreground" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuLabel>Layout</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => requestAutoLayout("TB")} disabled={nodes.length === 0}>
+                <LayoutGrid className="w-3.5 h-3.5 text-muted-foreground" />
+                Auto-organizar
+                <DropdownMenuShortcut>TB</DropdownMenuShortcut>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Configuração</DropdownMenuLabel>
+              <DropdownMenuCheckboxItem checked={snapToGrid} onCheckedChange={toggleSnapToGrid}>
+                <Grid3x3 className="w-3.5 h-3.5 text-muted-foreground mr-2" />
+                Grade (snap)
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem checked={presentationMode} onCheckedChange={togglePresentationMode}>
+                <Presentation className="w-3.5 h-3.5 text-muted-foreground mr-2" />
+                Apresentação
+              </DropdownMenuCheckboxItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-          {/* Panels dropdown */}
-          <NavDropdown
-            align="right"
-            trigger={
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className={cn(
-                      "gap-1.5 h-8 text-xs px-2.5",
-                      (validationPanelOpen || whatIfPanelOpen) && "text-primary border-primary/40 bg-primary/5"
-                    )}
-                  >
-                    <PanelRight className="w-3.5 h-3.5" />
-                    <span className="hidden md:inline">Painéis</span>
-                    <ChevronDown className="w-3 h-3 text-muted-foreground" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Templates, histórico e painéis</TooltipContent>
-              </Tooltip>
-            }
-            items={panelsItems}
-          />
+          {/* ── Panels dropdown ──────────────────────────────────────────── */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                size="sm"
+                variant="outline"
+                className={cn(
+                  "gap-1.5 h-8 text-xs px-2.5",
+                  (validationPanelOpen || whatIfPanelOpen) && "text-primary border-primary/40 bg-primary/5"
+                )}
+              >
+                <PanelRight className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">Painéis</span>
+                <ChevronDown className="w-3 h-3 text-muted-foreground" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuLabel>Biblioteca</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => setTemplatesOpen(true)}>
+                <LayoutTemplate className="w-3.5 h-3.5 text-muted-foreground" />
+                Templates
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={toggleHistoryPanel}>
+                <History className="w-3.5 h-3.5 text-muted-foreground" />
+                Histórico
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Análise</DropdownMenuLabel>
+              <DropdownMenuCheckboxItem checked={validationPanelOpen} onCheckedChange={toggleValidationPanel}>
+                <ShieldAlert className="w-3.5 h-3.5 text-muted-foreground mr-2" />
+                Validação
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem checked={whatIfPanelOpen} onCheckedChange={toggleWhatIfPanel}>
+                <Calculator className="w-3.5 h-3.5 text-muted-foreground mr-2" />
+                What-if
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem variant="destructive" onClick={handleClear}>
+                <RotateCcw className="w-3.5 h-3.5" />
+                Limpar canvas
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <div className="h-5 w-px bg-border mx-0.5" />
 
-          {/* Simulate / Results */}
+          {/* ── Simulate CTA ─────────────────────────────────────────────── */}
           {!isSimulating ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  size="sm"
-                  onClick={handleSimulate}
-                  disabled={nodes.length === 0}
-                  className="gap-1.5 h-8 text-xs px-3 bg-primary hover:bg-primary/90 shadow-sm"
-                >
-                  <Play className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline font-medium">Simular</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Executar simulação de arquitetura</TooltipContent>
-            </Tooltip>
+            <motion.div whileTap={{ scale: 0.96 }}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="sm"
+                    onClick={handleSimulate}
+                    disabled={nodes.length === 0}
+                    className={cn(
+                      "gap-1.5 h-8 text-xs px-3 font-semibold shadow-sm transition-all",
+                      isComplete && "bg-emerald-600 hover:bg-emerald-700"
+                    )}
+                  >
+                    <Play className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">{isComplete ? "Re-simular" : "Simular"}</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Executar simulação de arquitetura</TooltipContent>
+              </Tooltip>
+            </motion.div>
           ) : (
-            <Button size="sm" variant="destructive" onClick={reset} className="gap-1.5 h-8 text-xs px-3">
-              <Square className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline font-medium">Parar</span>
-            </Button>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+            >
+              <Button size="sm" variant="destructive" onClick={reset} className="gap-1.5 h-8 text-xs px-3 font-semibold">
+                <Square className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Parar</span>
+              </Button>
+            </motion.div>
           )}
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={toggleSimulationPanel}
-                className="gap-1.5 h-8 text-xs px-2.5"
-              >
+              <Button size="sm" variant="ghost" onClick={toggleSimulationPanel} className="gap-1.5 h-8 text-xs px-2">
                 <ChevronDown className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Resultados</span>
+                <span className="hidden sm:inline text-muted-foreground">Resultados</span>
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Painel de resultados</TooltipContent>
+            <TooltipContent>Painel de resultados da simulação</TooltipContent>
           </Tooltip>
 
           <div className="h-5 w-px bg-border mx-0.5" />
 
           {/* Theme toggle */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={toggleTheme}>
-                {theme === "dark" ? (
-                  <Sun className="w-4 h-4 text-amber-500" />
-                ) : (
-                  <Moon className="w-4 h-4" />
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{theme === "dark" ? "Modo claro" : "Modo escuro"}</TooltipContent>
-          </Tooltip>
-
-          <input
-            ref={importRef}
-            type="file"
-            accept=".json"
-            className="hidden"
-            onChange={handleFileChange}
-          />
+          <motion.div whileTap={{ rotate: 20 }} transition={{ duration: 0.15 }}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={toggleTheme}>
+                  {theme === "dark" ? (
+                    <Sun className="w-4 h-4 text-amber-400" />
+                  ) : (
+                    <Moon className="w-4 h-4" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{theme === "dark" ? "Modo claro" : "Modo escuro"}</TooltipContent>
+            </Tooltip>
+          </motion.div>
         </div>
       </nav>
 
+      <input ref={importRef} type="file" accept=".json" className="hidden" onChange={handleFileChange} />
       <TemplatesDialog open={templatesOpen} onClose={() => setTemplatesOpen(false)} />
     </TooltipProvider>
   );

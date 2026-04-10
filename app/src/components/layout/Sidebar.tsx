@@ -5,6 +5,7 @@
  * Premium design: colored accent strips, category count badges, improved hover states.
  */
 import React, { useState, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
   ChevronLeft,
@@ -188,19 +189,30 @@ export function Sidebar() {
                     </button>
                   )}
 
-                  {/* Services */}
-                  {isExpanded && (
-                    <div className={cn("space-y-0.5", !sidebarCollapsed && "mt-0.5")}>
-                      {category.services.map((service) => (
-                        <ServiceCard
-                          key={service.type}
-                          service={service}
-                          collapsed={sidebarCollapsed}
-                          onDragStart={handleDragStart}
-                        />
-                      ))}
-                    </div>
-                  )}
+                  {/* Services — animated expand/collapse */}
+                  <AnimatePresence initial={false}>
+                    {isExpanded && (
+                      <motion.div
+                        key="services"
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
+                        className="overflow-hidden"
+                      >
+                        <div className={cn("space-y-0.5", !sidebarCollapsed && "mt-0.5 pb-0.5")}>
+                          {category.services.map((service) => (
+                            <ServiceCard
+                              key={service.type}
+                              service={service}
+                              collapsed={sidebarCollapsed}
+                              onDragStart={handleDragStart}
+                            />
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               );
             })}

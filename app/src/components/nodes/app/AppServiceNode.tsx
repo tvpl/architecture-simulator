@@ -6,6 +6,7 @@
  */
 import React, { memo } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
+import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { appComponentRegistry } from "@/registry/app-components";
 import { useLayerStore } from "@/stores/layer-store";
@@ -58,10 +59,14 @@ const AppServiceNode = memo(function AppServiceNode({
   const isHealthy = !!(healthCheckPath || metricsEnabled);
 
   return (
-    <div
+    <motion.div
       onClick={handleClick}
+      initial={{ opacity: 0, scale: 0.88, y: 6 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      transition={{ type: "spring", stiffness: 400, damping: 30, mass: 0.8 }}
+      whileHover={{ y: -1 }}
       className={cn(
-        "relative min-w-[160px] rounded-xl bg-card shadow-md transition-all cursor-pointer overflow-hidden",
+        "relative min-w-[160px] rounded-xl bg-card transition-shadow cursor-pointer overflow-hidden",
         "border border-border/60",
         "hover:shadow-lg hover:border-border",
         selected && "ring-2 ring-offset-1 ring-violet-500/40 shadow-lg border-transparent"
@@ -180,7 +185,7 @@ const AppServiceNode = memo(function AppServiceNode({
         position={Position.Bottom}
         className="!w-3 !h-3 !bg-violet-500/60 !border-2 !border-background hover:!bg-violet-500 transition-colors"
       />
-    </div>
+    </motion.div>
   );
 });
 
