@@ -2,13 +2,16 @@
 /**
  * NodeContextMenu — floating right-click context menu for canvas nodes.
  * Layer-aware: shows L2-specific actions for app components.
+ * Modern design: node info header, grouped actions, keyboard shortcut badges.
  */
 import React, { useEffect, useRef } from "react";
-import { Copy, Trash2, PenLine, Layers, Server, ArrowUpDown } from "lucide-react";
+import { Copy, Trash2, PenLine, Layers, Server, ArrowUpDown, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFlowStore, selectInfraHostOptions } from "@/stores/flow-store";
 import { useSelectionStore } from "@/stores/selection-store";
 import { useUIStore } from "@/stores/ui-store";
+import { registry } from "@/registry";
+import { appComponentRegistry } from "@/registry/app-components";
 
 export interface ContextMenuState {
   nodeId: string;
@@ -24,16 +27,30 @@ interface NodeContextMenuProps {
 
 export function NodeContextMenu({ menu, onClose, onStartRename }: NodeContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
-  const { removeNode, duplicateNode, removeAppComponent, duplicateAppComponent, solutionNodes, updateAppComponentData } = useFlowStore();
+  const {
+    removeNode,
+    duplicateNode,
+    removeAppComponent,
+    duplicateAppComponent,
+    solutionNodes,
+    nodes,
+    updateAppComponentData,
+  } = useFlowStore();
   const infraHosts = useFlowStore(selectInfraHostOptions);
   const { selectNode } = useSelectionStore();
   const { openPropertiesPanel } = useUIStore();
 
-  // Determine if this is an L2 node
   const isL2 = solutionNodes.some((n) => n.id === menu.nodeId);
   const l2Node = isL2 ? solutionNodes.find((n) => n.id === menu.nodeId) : null;
+  const l1Node = !isL2 ? nodes.find((n) => n.id === menu.nodeId) : null;
 
-  // Close on outside click or Escape
+  // Resolve node label and type for header
+  const nodeLabel = isL2 ? l2Node?.data.label : l1Node?.data.label;
+  const nodeType = isL2 ? l2Node?.data.type : l1Node?.data.type;
+  const nodeTypeDef = isL2
+    ? (nodeType ? appComponentRegistry.get(nodeType as never) : null)
+    : (nodeType ? registry.get(nodeType as never) : null);
+
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -49,11 +66,10 @@ export function NodeContextMenu({ menu, onClose, onStartRename }: NodeContextMen
     };
   }, [onClose]);
 
-  // Adjust position so menu doesn't overflow viewport
   const viewportWidth = typeof window !== "undefined" ? window.innerWidth : 1200;
   const viewportHeight = typeof window !== "undefined" ? window.innerHeight : 800;
-  const menuWidth = 220;
-  const menuHeight = isL2 ? 280 : 160;
+  const menuWidth = 240;
+  const menuHeight = isL2 ? 360 : 200;
   const x = Math.min(menu.x, viewportWidth - menuWidth - 8);
   const y = Math.min(menu.y, viewportHeight - menuHeight - 8);
 
@@ -69,89 +85,145 @@ export function NodeContextMenu({ menu, onClose, onStartRename }: NodeContextMen
     <div
       ref={menuRef}
       style={{ left: x, top: y }}
-      className="fixed z-50 w-52 bg-background border border-border rounded-lg shadow-xl overflow-hidden py-1"
+      className="fixed z-50 w-60 bg-background/95 backdrop-blur-sm border border-border/80 rounded-xl shadow-2xl overflow-hidden"
     >
-      <MenuItem
-        icon={<PenLine className="w-3.5 h-3.5" />}
-        label="Renomear"
-        shortcut="F2"
-        onClick={() => action(() => onStartRename(menu.nodeId))}
-      />
-      <MenuItem
-        icon={<Copy className="w-3.5 h-3.5" />}
-        label="Duplicar"
-        shortcut="Ctrl+D"
-        onClick={() => action(() => handleDuplicate(menu.nodeId))}
-      />
-      <MenuItem
-        icon={<Layers className="w-3.5 h-3.5" />}
-        label="Propriedades"
-        onClick={() => action(() => {
-          selectNode(menu.nodeId);
-          openPropertiesPanel();
-        })}
-      />
+      {/* Node info header */}
+      <div className="px-3 py-2.5 border-b border-border/60 bg-muted/30">
+        <div className="flex items-center gap-2">
+          {nodeTypeDef && (
+            <div className={cn("p-1 rounded-md shrink-0", nodeTypeDef.bgColor)}>
+              <div className={cn("w-3 h-3", nodeTypeDef.color)}>
+                {/* Small type indicator */}
+              </div>
+            </div>
+          )}
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-foreground truncate">{nodeLabel}</p>
+            <p className="text-[10px] text-muted-foreground">
+              {nodeTypeDef?.label ?? nodeType}
+              {isL2 && <span className="ml-1 text-violet-500 font-medium">· L2</span>}
+            </p>
+          </div>
+        </div>
+      </div>
 
-      {/* L2-specific: Change host submenu */}
+      {/* Primary actions */}
+      <div className="py-1">
+        <MenuSection label="Ações">
+          <MenuItem
+            icon={<PenLine className="w-3.5 h-3.5" />}
+            label="Renomear"
+            shortcut="F2"
+            onClick={() => action(() => onStartRename(menu.nodeId))}
+          />
+          <MenuItem
+            icon={<Copy className="w-3.5 h-3.5" />}
+            label="Duplicar"
+            shortcut="Ctrl+D"
+            onClick={() => action(() => handleDuplicate(menu.nodeId))}
+          />
+          <MenuItem
+            icon={<Settings className="w-3.5 h-3.5" />}
+            label="Propriedades"
+            onClick={() =>
+              action(() => {
+                selectNode(menu.nodeId);
+                openPropertiesPanel();
+              })
+            }
+          />
+        </MenuSection>
+      </div>
+
+      {/* L2-specific: Move to host */}
       {isL2 && l2Node && infraHosts.length > 1 && (
         <>
-          <div className="my-1 border-t border-border" />
-          <div className="px-3 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-            Mover para host
+          <div className="border-t border-border/60" />
+          <div className="py-1">
+            <MenuSection label="Mover para host">
+              {infraHosts
+                .filter((h) => h.id !== l2Node.data.hostInfrastructureNodeId)
+                .slice(0, 4)
+                .map((host) => (
+                  <MenuItem
+                    key={host.id}
+                    icon={<Server className="w-3.5 h-3.5" />}
+                    label={host.data.label}
+                    sublabel={host.data.type}
+                    onClick={() =>
+                      action(() =>
+                        updateAppComponentData(menu.nodeId, {
+                          hostInfrastructureNodeId: host.id,
+                        })
+                      )
+                    }
+                  />
+                ))}
+            </MenuSection>
           </div>
-          {infraHosts
-            .filter((h) => h.id !== l2Node.data.hostInfrastructureNodeId)
-            .slice(0, 5)
-            .map((host) => (
-              <MenuItem
-                key={host.id}
-                icon={<Server className="w-3.5 h-3.5" />}
-                label={host.data.label}
-                sublabel={host.data.type}
-                onClick={() =>
-                  action(() =>
-                    updateAppComponentData(menu.nodeId, {
-                      hostInfrastructureNodeId: host.id,
-                    })
-                  )
-                }
-              />
-            ))}
         </>
       )}
 
       {/* L2-specific: Quick scale */}
       {isL2 && l2Node && (l2Node.data.config as unknown as Record<string, unknown>).replicas !== undefined && (
         <>
-          <div className="my-1 border-t border-border" />
-          <div className="px-3 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-            Escalar réplicas
+          <div className="border-t border-border/60" />
+          <div className="py-1">
+            <MenuSection label="Escalar réplicas">
+              <div className="flex gap-1 px-3 py-1.5 flex-wrap">
+                {[1, 2, 3, 5, 10].map((count) => {
+                  const isActive =
+                    (l2Node.data.config as unknown as Record<string, unknown>).replicas === count;
+                  return (
+                    <button
+                      key={count}
+                      onClick={() =>
+                        action(() =>
+                          useFlowStore.getState().updateAppComponentConfig(menu.nodeId, { replicas: count })
+                        )
+                      }
+                      className={cn(
+                        "flex items-center justify-center gap-0.5 w-9 h-7 rounded-md text-xs font-semibold transition-all",
+                        isActive
+                          ? "bg-violet-500 text-white shadow-sm"
+                          : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+                      )}
+                    >
+                      <ArrowUpDown className="w-2.5 h-2.5 shrink-0" />
+                      {count}
+                    </button>
+                  );
+                })}
+              </div>
+            </MenuSection>
           </div>
-          {[1, 2, 3, 5, 10].map((count) => (
-            <MenuItem
-              key={count}
-              icon={<ArrowUpDown className="w-3.5 h-3.5" />}
-              label={`${count} réplica${count > 1 ? "s" : ""}`}
-              active={(l2Node.data.config as unknown as Record<string, unknown>).replicas === count}
-              onClick={() =>
-                action(() =>
-                  useFlowStore.getState().updateAppComponentConfig(menu.nodeId, { replicas: count })
-                )
-              }
-            />
-          ))}
         </>
       )}
 
-      <div className="my-1 border-t border-border" />
-      <MenuItem
-        icon={<Trash2 className="w-3.5 h-3.5" />}
-        label="Remover"
-        shortcut="Del"
-        danger
-        onClick={() => action(() => handleRemove(menu.nodeId))}
-      />
+      {/* Danger zone */}
+      <div className="border-t border-border/60 py-1">
+        <MenuItem
+          icon={<Trash2 className="w-3.5 h-3.5" />}
+          label="Remover"
+          shortcut="Del"
+          danger
+          onClick={() => action(() => handleRemove(menu.nodeId))}
+        />
+      </div>
     </div>
+  );
+}
+
+// ── Sub-components ─────────────────────────────────────────────────────────────
+
+function MenuSection({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <>
+      <div className="px-3 py-1 text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
+        {label}
+      </div>
+      {children}
+    </>
   );
 }
 
@@ -179,16 +251,18 @@ function MenuItem({
         danger
           ? "text-destructive hover:bg-destructive/10"
           : active
-          ? "bg-primary/10 text-primary hover:bg-primary/15"
-          : "text-foreground hover:bg-muted"
+          ? "bg-primary/8 text-primary font-medium"
+          : "text-foreground hover:bg-muted/70"
       )}
       onClick={onClick}
     >
-      <span className="text-muted-foreground">{icon}</span>
+      <span className={cn("shrink-0", danger ? "text-destructive" : active ? "text-primary" : "text-muted-foreground")}>
+        {icon}
+      </span>
       <span className="flex-1 truncate">{label}</span>
-      {sublabel && <span className="text-[10px] text-muted-foreground">{sublabel}</span>}
+      {sublabel && <span className="text-[10px] text-muted-foreground shrink-0">{sublabel}</span>}
       {shortcut && (
-        <kbd className="text-[10px] text-muted-foreground bg-muted px-1 py-0.5 rounded border border-border font-mono">
+        <kbd className="text-[9px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded border border-border font-mono ml-auto shrink-0">
           {shortcut}
         </kbd>
       )}

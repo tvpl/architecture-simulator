@@ -1,11 +1,12 @@
 "use client";
 /**
  * ServiceNode — universal node renderer for all AWS services.
- * Reads the service definition from the registry to render icon, colors,
+ * Premium card design with category accent bar, metric pills,
  * and layer-specific overlays.
  */
 import React, { memo } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
+import { AlertTriangle, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { registry } from "@/registry";
 import { useLayerStore } from "@/stores/layer-store";
@@ -18,6 +19,15 @@ import { calculateMaxThroughput } from "@/domain/services/throughput";
 import { formatThroughput } from "@/lib/formatters";
 import type { FlowNode } from "@/stores/flow-store";
 import { ServiceIcon } from "./ServiceIcon";
+
+// Converts "border-orange-500" → "bg-orange-500" for accent strip
+function borderToAccentBg(borderColor: string): string {
+  return borderColor
+    .split(" ")
+    .filter((c) => c.startsWith("border-") && c !== "border-dashed")
+    .map((c) => c.replace("border-", "bg-"))
+    .join(" ");
+}
 
 const ServiceNode = memo(function ServiceNode({ data, selected }: NodeProps<FlowNode>) {
   const activeLayer = useLayerStore((s) => s.activeLayer);
@@ -33,20 +43,18 @@ const ServiceNode = memo(function ServiceNode({ data, selected }: NodeProps<Flow
   const costResult = calculateServiceCost(data);
   const availability = calculateAvailability(data);
   const maxThroughput = calculateMaxThroughput(data);
+  const accentBg = borderToAccentBg(def.borderColor);
 
   return (
     <div
       onClick={handleClick}
       className={cn(
-        "relative min-w-[140px] rounded-xl border-2 bg-card shadow-sm transition-all cursor-pointer",
-        "hover:shadow-md",
-        selected
-          ? `${def.borderColor} shadow-lg ring-2 ring-offset-1 ring-primary/30`
-          : hasError
-          ? "border-red-500 dark:border-red-500"
-          : hasWarning
-          ? "border-yellow-400 dark:border-yellow-400"
-          : "border-border hover:border-primary/40"
+        "relative min-w-[150px] rounded-xl bg-card shadow-md transition-all cursor-pointer overflow-hidden",
+        "border border-border/60",
+        "hover:shadow-lg hover:border-border",
+        selected && `ring-2 ring-offset-1 ring-primary/40 shadow-lg border-transparent`,
+        hasError && !selected && "ring-1 ring-red-500/60 border-red-200 dark:border-red-900",
+        hasWarning && !selected && !hasError && "ring-1 ring-yellow-400/60 border-yellow-200 dark:border-yellow-900"
       )}
     >
       {/* Top handle */}
@@ -56,73 +64,87 @@ const ServiceNode = memo(function ServiceNode({ data, selected }: NodeProps<Flow
         className="!w-3 !h-3 !bg-primary/60 !border-2 !border-background hover:!bg-primary transition-colors"
       />
 
-      {/* Node body */}
-      <div className="p-3">
-        <div className="flex items-center gap-2 mb-1">
-          <div className={cn("p-1.5 rounded-lg", def.bgColor)}>
-            <ServiceIcon iconName={def.iconName} className={cn("w-4 h-4", def.color)} />
+      {/* Left category accent bar */}
+      <div className={cn("absolute left-0 top-0 bottom-0 w-1 rounded-l-xl", accentBg)} />
+
+      {/* Content */}
+      <div className="pl-4 pr-3 pt-2.5 pb-2.5">
+        {/* Header row */}
+        <div className="flex items-start gap-2.5">
+          {/* Icon */}
+          <div className={cn("p-1.5 rounded-lg shrink-0 mt-0.5", def.bgColor)}>
+            <ServiceIcon iconName={def.iconName} className={cn("w-3.5 h-3.5", def.color)} />
           </div>
+
+          {/* Labels */}
           <div className="flex-1 min-w-0">
-            <div className="text-xs font-semibold text-foreground truncate">{data.label}</div>
-            <div className="text-[10px] text-muted-foreground">{def.label}</div>
+            <div className="text-xs font-semibold text-foreground truncate leading-tight">{data.label}</div>
+            <div className="text-[10px] text-muted-foreground leading-tight mt-0.5">{def.label}</div>
           </div>
-          {/* Validation badge */}
+
+          {/* Validation indicator */}
           {(hasError || hasWarning) && (
-            <div
-              className={cn(
-                "w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0",
-                hasError
-                  ? "bg-red-500 text-white"
-                  : "bg-yellow-400 text-yellow-900"
+            <div className="shrink-0 mt-0.5">
+              {hasError ? (
+                <AlertCircle className="w-3.5 h-3.5 text-red-500" />
+              ) : (
+                <AlertTriangle className="w-3.5 h-3.5 text-yellow-500" />
               )}
-              title={hasError ? "Erro de validação" : "Aviso de validação"}
-            >
-              {hasError ? "!" : "⚠"}
             </div>
           )}
         </div>
 
-        {/* Layer-specific overlay */}
+        {/* Layer-specific overlays */}
         {activeLayer === "solution-design" && (
-          <div className="mt-1.5 pt-1.5 border-t border-border/50 text-[10px] text-muted-foreground space-y-0.5">
-            <div className="flex justify-between">
-              <span>Throughput</span>
-              <span className="font-medium text-foreground">{formatThroughput(maxThroughput)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Latência</span>
-              <span className="font-medium text-foreground">{data.latencyMs}ms</span>
-            </div>
+          <div className="mt-2 pt-2 border-t border-border/40 flex gap-2">
+            <MetricPill label="Throughput" value={formatThroughput(maxThroughput)} />
+            <MetricPill label="Latência" value={`${data.latencyMs}ms`} />
           </div>
         )}
 
         {activeLayer === "cost" && (
-          <div className="mt-1.5 pt-1.5 border-t border-border/50">
-            <div className={cn(
-              "text-xs font-semibold text-center rounded px-1 py-0.5",
-              costResult.monthlyCostUSD > 500
-                ? "bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400"
-                : costResult.monthlyCostUSD > 100
-                ? "bg-yellow-50 text-yellow-700 dark:bg-yellow-950/30 dark:text-yellow-400"
-                : "bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400"
-            )}>
-              {formatUSD(costResult.monthlyCostUSD)}/mês
+          <div className="mt-2 pt-1.5 border-t border-border/40">
+            <div
+              className={cn(
+                "text-xs font-bold text-center rounded-md px-2 py-1",
+                costResult.monthlyCostUSD > 500
+                  ? "bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400"
+                  : costResult.monthlyCostUSD > 100
+                  ? "bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400"
+                  : "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400"
+              )}
+            >
+              {formatUSD(costResult.monthlyCostUSD)}
+              <span className="font-normal text-[10px] opacity-75">/mês</span>
             </div>
           </div>
         )}
 
         {activeLayer === "simulation" && (
-          <div className="mt-1.5 pt-1.5 border-t border-border/50 text-[10px] space-y-0.5">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Uptime</span>
-              <span className={cn(
-                "font-medium",
-                availability >= 99.99
-                  ? "text-green-600 dark:text-green-400"
-                  : availability >= 99.9
-                  ? "text-yellow-600 dark:text-yellow-400"
-                  : "text-red-600 dark:text-red-400"
-              )}>
+          <div className="mt-2 pt-1.5 border-t border-border/40">
+            <div className="flex items-center gap-1.5">
+              {/* Uptime indicator dot */}
+              <span
+                className={cn(
+                  "w-2 h-2 rounded-full shrink-0",
+                  availability >= 99.99
+                    ? "bg-emerald-500"
+                    : availability >= 99.9
+                    ? "bg-yellow-500"
+                    : "bg-red-500"
+                )}
+              />
+              <span className="text-[10px] text-muted-foreground">Uptime</span>
+              <span
+                className={cn(
+                  "text-[10px] font-semibold ml-auto",
+                  availability >= 99.99
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : availability >= 99.9
+                    ? "text-yellow-600 dark:text-yellow-400"
+                    : "text-red-600 dark:text-red-400"
+                )}
+              >
                 {availability.toFixed(2)}%
               </span>
             </div>
@@ -139,5 +161,14 @@ const ServiceNode = memo(function ServiceNode({ data, selected }: NodeProps<Flow
     </div>
   );
 });
+
+function MetricPill({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex-1 bg-muted/60 rounded-md px-1.5 py-1 text-center">
+      <div className="text-[9px] text-muted-foreground leading-none mb-0.5">{label}</div>
+      <div className="text-[10px] font-semibold text-foreground leading-none">{value}</div>
+    </div>
+  );
+}
 
 export { ServiceNode };
