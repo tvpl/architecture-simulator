@@ -221,7 +221,7 @@ export function Sidebar() {
               <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
                 <Search className="w-8 h-8 text-muted-foreground/30 mb-2" />
                 <p className="text-xs text-muted-foreground">Nenhum resultado para</p>
-                <p className="text-xs font-medium text-foreground mt-0.5">"{search}"</p>
+                <p className="text-xs font-medium text-foreground mt-0.5">&ldquo;{search}&rdquo;</p>
               </div>
             )}
           </div>

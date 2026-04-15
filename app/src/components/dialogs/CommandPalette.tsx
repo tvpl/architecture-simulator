@@ -226,7 +226,7 @@ export function CommandPalette() {
                   <div className="flex flex-col items-center justify-center py-10 text-center">
                     <Search className="w-8 h-8 text-muted-foreground/30 mb-2" />
                     <p className="text-sm text-muted-foreground">Nenhum resultado para</p>
-                    <p className="text-sm font-semibold text-foreground mt-0.5">"{query}"</p>
+                    <p className="text-sm font-semibold text-foreground mt-0.5">&ldquo;{query}&rdquo;</p>
                   </div>
                 ) : (
                   Array.from(grouped.entries()).map(([group, cmds]) => (
