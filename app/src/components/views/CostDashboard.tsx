@@ -1,21 +1,49 @@
 "use client";
 /**
  * CostDashboard — Layer 3 view replacing the canvas with a cost report/dashboard.
- * Shows cost breakdown by service, category charts, and projections.
+ * Shows cost breakdown by service, category charts, projections, currency toggle,
+ * and environment comparison (dev/staging/prod).
  */
-import React, { useMemo } from "react";
-import { DollarSign, TrendingUp, BarChart3, PieChart } from "lucide-react";
+import React, { useMemo, useState } from "react";
+import {
+  DollarSign,
+  TrendingUp,
+  BarChart3,
+  PieChart,
+  Globe,
+  Layers,
+  CalendarDays,
+  Bell,
+  BellRing,
+  AlertTriangle,
+  CheckCircle2,
+} from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useFlowStore, selectDomainNodes, selectSolutionDomainNodes } from "@/stores/flow-store";
 import { calculateServiceCost, estimateAppComponentCost } from "@/domain/services/cost";
-import { formatUSD } from "@/lib/formatters";
+import { formatUSD, formatBRL } from "@/lib/formatters";
 import { registry } from "@/registry";
 import { appComponentRegistry } from "@/registry/app-components";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
+const BRL_RATE = 5.0;
+
+const ENVIRONMENTS = [
+  { id: "dev", name: "Dev", factor: 0.25, accent: "text-blue-600 dark:text-blue-400", bg: "bg-blue-50 dark:bg-blue-950/30", border: "border-blue-200 dark:border-blue-800" },
+  { id: "staging", name: "Staging", factor: 0.5, accent: "text-amber-600 dark:text-amber-400", bg: "bg-amber-50 dark:bg-amber-950/30", border: "border-amber-200 dark:border-amber-800" },
+  { id: "prod", name: "Prod", factor: 1.0, accent: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-50 dark:bg-emerald-950/30", border: "border-emerald-200 dark:border-emerald-800" },
+] as const;
+
+const PROJECTION_MONTHS = [1, 3, 6, 12] as const;
+
 export function CostDashboard() {
   const domainNodes = useFlowStore(selectDomainNodes);
   const appNodes = useFlowStore(selectSolutionDomainNodes);
+  const [currency, setCurrency] = useState<"USD" | "BRL">("USD");
+  const [budgetInput, setBudgetInput] = useState("");
+
+  const fmt = (v: number) => currency === "BRL" ? formatBRL(v, BRL_RATE) : formatUSD(v);
 
   const serviceCosts = useMemo(
     () =>
@@ -60,9 +88,22 @@ export function CostDashboard() {
     [appNodes]
   );
 
-  const totalMonthlyCost = serviceCosts.reduce((sum, s) => sum + s.monthlyCost, 0)
-    + appCosts.reduce((sum, s) => sum + s.monthlyCost, 0);
+  const totalMonthlyCost =
+    serviceCosts.reduce((sum, s) => sum + s.monthlyCost, 0) +
+    appCosts.reduce((sum, s) => sum + s.monthlyCost, 0);
+
   const annualProjection = totalMonthlyCost * 12;
+
+  const budgetUSD = budgetInput === "" ? null : Number(budgetInput);
+  const budgetValid = budgetUSD !== null && !isNaN(budgetUSD) && budgetUSD > 0;
+  const budgetPct = budgetValid ? Math.min((totalMonthlyCost / budgetUSD!) * 100, 999) : 0;
+  const budgetStatus = !budgetValid
+    ? "none"
+    : budgetPct >= 100
+    ? "over"
+    : budgetPct >= 80
+    ? "warn"
+    : "ok";
 
   // Group by category
   const categoryBreakdown = useMemo(() => {
@@ -95,19 +136,42 @@ export function CostDashboard() {
   return (
     <ScrollArea className="w-full h-full">
       <div className="p-6 max-w-5xl mx-auto space-y-6">
+
+        {/* Header with currency toggle */}
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Análise de Custos</h2>
+          <div className="flex items-center gap-1 rounded-lg border border-border p-0.5 bg-muted/50">
+            <Globe className="w-3.5 h-3.5 text-muted-foreground ml-1.5" />
+            {(["USD", "BRL"] as const).map((c) => (
+              <button
+                key={c}
+                onClick={() => setCurrency(c)}
+                className={cn(
+                  "px-2.5 py-1 text-xs font-medium rounded-md transition-all",
+                  currency === c
+                    ? "bg-background shadow text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Summary cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <SummaryCard
             icon={<DollarSign className="w-5 h-5" />}
             label="Custo Mensal"
-            value={formatUSD(totalMonthlyCost)}
+            value={fmt(totalMonthlyCost)}
             accent="text-blue-600 dark:text-blue-400"
             bg="bg-blue-50 dark:bg-blue-950/30"
           />
           <SummaryCard
             icon={<TrendingUp className="w-5 h-5" />}
             label="Projeção Anual"
-            value={formatUSD(annualProjection)}
+            value={fmt(annualProjection)}
             accent="text-emerald-600 dark:text-emerald-400"
             bg="bg-emerald-50 dark:bg-emerald-950/30"
           />
@@ -120,6 +184,146 @@ export function CostDashboard() {
           />
         </div>
 
+        {/* Budget alert */}
+        <div className="bg-card border border-border rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            {budgetStatus === "over" ? (
+              <BellRing className="w-4 h-4 text-red-500 animate-pulse" />
+            ) : budgetStatus === "warn" ? (
+              <AlertTriangle className="w-4 h-4 text-amber-500" />
+            ) : (
+              <Bell className="w-4 h-4 text-muted-foreground" />
+            )}
+            <h3 className="text-sm font-semibold">Alerta de Orçamento</h3>
+          </div>
+
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-xs text-muted-foreground shrink-0">Limite mensal (USD):</span>
+            <Input
+              className="h-7 text-sm flex-1 max-w-[140px]"
+              type="number"
+              min={0}
+              placeholder="ex: 500"
+              value={budgetInput}
+              onChange={(e) => setBudgetInput(e.target.value)}
+            />
+          </div>
+
+          {budgetStatus !== "none" && (
+            <div className="space-y-2">
+              {/* Progress bar */}
+              <div className="h-2.5 bg-muted rounded-full overflow-hidden">
+                <div
+                  className={cn(
+                    "h-full rounded-full transition-all",
+                    budgetStatus === "over"
+                      ? "bg-red-500"
+                      : budgetStatus === "warn"
+                      ? "bg-amber-400"
+                      : "bg-emerald-500"
+                  )}
+                  style={{ width: `${Math.min(budgetPct, 100)}%` }}
+                />
+              </div>
+
+              {/* Status row */}
+              <div className={cn(
+                "flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium",
+                budgetStatus === "over"
+                  ? "bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400"
+                  : budgetStatus === "warn"
+                  ? "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400"
+                  : "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400"
+              )}>
+                {budgetStatus === "over" ? (
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                ) : budgetStatus === "warn" ? (
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                ) : (
+                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                )}
+                <span>
+                  {budgetStatus === "over"
+                    ? `Orçamento excedido em ${formatUSD(totalMonthlyCost - budgetUSD!)} (${budgetPct.toFixed(0)}%)`
+                    : budgetStatus === "warn"
+                    ? `${budgetPct.toFixed(0)}% do orçamento utilizado — atenção necessária`
+                    : `${budgetPct.toFixed(0)}% do orçamento utilizado — dentro do limite`}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* T-6.5: Monthly projections */}
+        <div className="bg-card border border-border rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-4">
+            <CalendarDays className="w-4 h-4 text-muted-foreground" />
+            <h3 className="text-sm font-semibold">Projeções de Custo</h3>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {PROJECTION_MONTHS.map((months) => {
+              const projected = totalMonthlyCost * months;
+              return (
+                <div
+                  key={months}
+                  className="rounded-lg border border-border bg-muted/30 p-3 text-center"
+                >
+                  <div className="text-[10px] text-muted-foreground mb-1">
+                    {months === 1 ? "1 mês" : `${months} meses`}
+                  </div>
+                  <div className="text-sm font-bold text-foreground">{fmt(projected)}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* T-6.6: Environment comparison */}
+        <div className="bg-card border border-border rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-4">
+            <Layers className="w-4 h-4 text-muted-foreground" />
+            <h3 className="text-sm font-semibold">Comparativo por Ambiente</h3>
+            <span className="text-[10px] text-muted-foreground ml-1">(estimativa de dimensionamento)</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {ENVIRONMENTS.map((env) => {
+              const envMonthly = totalMonthlyCost * env.factor;
+              const envAnnual = envMonthly * 12;
+              return (
+                <div
+                  key={env.id}
+                  className={cn("rounded-xl border p-4", env.bg, env.border)}
+                >
+                  <div className={cn("text-xs font-semibold uppercase tracking-wider mb-3", env.accent)}>
+                    {env.name}
+                    <span className="normal-case font-normal ml-1 opacity-70">
+                      ({(env.factor * 100).toFixed(0)}% de Prod)
+                    </span>
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-baseline">
+                      <span className="text-[10px] text-muted-foreground">Mensal</span>
+                      <span className={cn("text-sm font-bold", env.accent)}>{fmt(envMonthly)}</span>
+                    </div>
+                    <div className="flex justify-between items-baseline">
+                      <span className="text-[10px] text-muted-foreground">Anual</span>
+                      <span className="text-xs font-medium text-foreground">{fmt(envAnnual)}</span>
+                    </div>
+                    <div className="h-1 bg-muted rounded-full overflow-hidden mt-2">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{ width: `${env.factor * 100}%` }}
+                      >
+                        <div className={cn("h-full w-full rounded-full", env.id === "dev" ? "bg-blue-400" : env.id === "staging" ? "bg-amber-400" : "bg-emerald-400")} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Category breakdown with SVG pie chart */}
         <div className="bg-card border border-border rounded-xl p-4">
           <div className="flex items-center gap-2 mb-4">
@@ -129,7 +333,7 @@ export function CostDashboard() {
           <div className="flex gap-6">
             {/* SVG Pie Chart */}
             <div className="shrink-0">
-              <MiniPieChart data={categoryBreakdown} total={totalMonthlyCost} />
+              <MiniPieChart data={categoryBreakdown} total={totalMonthlyCost} fmt={fmt} />
             </div>
             {/* Bar breakdown */}
             <div className="flex-1 space-y-2">
@@ -142,7 +346,7 @@ export function CostDashboard() {
                         <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
                         {category}
                       </span>
-                      <span className="font-medium">{formatUSD(cost)} ({pct.toFixed(1)}%)</span>
+                      <span className="font-medium">{fmt(cost)} ({pct.toFixed(1)}%)</span>
                     </div>
                     <div className="h-2 bg-muted rounded-full overflow-hidden">
                       <div
@@ -164,7 +368,7 @@ export function CostDashboard() {
           </div>
           <div className="divide-y divide-border">
             {serviceCosts.map((s) => (
-              <CostRow key={s.id} label={s.label} typeName={s.typeName} cost={s.monthlyCost} />
+              <CostRow key={s.id} label={s.label} typeName={s.typeName} cost={s.monthlyCost} fmt={fmt} />
             ))}
           </div>
         </div>
@@ -178,7 +382,7 @@ export function CostDashboard() {
             </div>
             <div className="divide-y divide-border">
               {appCosts.map((s) => (
-                <CostRow key={s.id} label={s.label} typeName={s.typeName} cost={s.monthlyCost} />
+                <CostRow key={s.id} label={s.label} typeName={s.typeName} cost={s.monthlyCost} fmt={fmt} />
               ))}
             </div>
           </div>
@@ -188,7 +392,17 @@ export function CostDashboard() {
   );
 }
 
-function CostRow({ label, typeName, cost }: { label: string; typeName: string; cost: number }) {
+function CostRow({
+  label,
+  typeName,
+  cost,
+  fmt,
+}: {
+  label: string;
+  typeName: string;
+  cost: number;
+  fmt: (v: number) => string;
+}) {
   return (
     <div className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors">
       <div className="flex-1 min-w-0">
@@ -206,7 +420,7 @@ function CostRow({ label, typeName, cost }: { label: string; typeName: string; c
               : "text-green-600 dark:text-green-400"
           )}
         >
-          {formatUSD(cost)}/mês
+          {fmt(cost)}/mês
         </div>
       </div>
     </div>
@@ -217,7 +431,15 @@ function CostRow({ label, typeName, cost }: { label: string; typeName: string; c
 
 const PIE_COLORS = ["#3b82f6", "#8b5cf6", "#f59e0b", "#ef4444", "#10b981", "#ec4899", "#06b6d4", "#f97316"];
 
-function MiniPieChart({ data, total }: { data: { category: string; cost: number }[]; total: number }) {
+function MiniPieChart({
+  data,
+  total,
+  fmt,
+}: {
+  data: { category: string; cost: number }[];
+  total: number;
+  fmt: (v: number) => string;
+}) {
   const size = 120;
   const cx = size / 2;
   const cy = size / 2;
@@ -274,7 +496,7 @@ function MiniPieChart({ data, total }: { data: { category: string; cost: number 
       <circle cx={cx} cy={cy} r={r * 0.55} className="fill-card" />
       {/* Center text */}
       <text x={cx} y={cy - 4} textAnchor="middle" className="fill-foreground text-[10px] font-semibold">
-        {formatUSD(total)}
+        {fmt(total)}
       </text>
       <text x={cx} y={cy + 8} textAnchor="middle" className="fill-muted-foreground text-[8px]">
         /mês

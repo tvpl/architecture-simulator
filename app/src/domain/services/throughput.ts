@@ -96,6 +96,21 @@ export function calculateMaxThroughput(node: ArchitectureNode): number {
       return cfg.type === "express" ? 100_000 : 2000;
     }
 
+    case "opensearch": {
+      const cfg = node.config as import("../entities/node").OpenSearchConfig;
+      return cfg.instanceCount * 5_000;
+    }
+
+    case "redshift": {
+      const cfg = node.config as import("../entities/node").RedshiftConfig;
+      return cfg.nodeCount * 100; // concurrent queries
+    }
+
+    case "sagemaker": {
+      const cfg = node.config as import("../entities/node").SageMakerConfig;
+      return cfg.instanceCount * 1000; // inferences/sec
+    }
+
     case "note":
       return 0;
 

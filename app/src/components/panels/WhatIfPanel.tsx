@@ -12,7 +12,9 @@ import { useFlowStore, selectDomainNodes } from "@/stores/flow-store";
 import { useUIStore } from "@/stores/ui-store";
 import { calculateServiceCost } from "@/domain/services/cost";
 import { formatUSD } from "@/lib/formatters";
+import { registry } from "@/registry";
 import type { ArchitectureNode } from "@/domain/entities/node";
+import type { NumberField } from "@/registry/types";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -20,85 +22,60 @@ import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 
 // Tweak-able parameters per service type
-type Multiplier = { label: string; key: string; min: number; max: number; step: number; current: number };
+type Multiplier = { label: string; key: string; min: number; max: number; step: number; current: number; unit?: string };
 
+/** Auto-discovers cost-impacting NumberFields from the registry for each node. */
 function buildMultipliers(nodes: ArchitectureNode[]): Record<string, Multiplier> {
   const result: Record<string, Multiplier> = {};
+
+  // Keys that are non-cost-impacting — skip these
+  const skipKeys = new Set(["inboundRules", "outboundRules", "alarmsCount", "retentionDays",
+    "idleTimeoutSec", "timeoutSec", "bounceRateTarget", "replicationFactor"]);
+
   nodes.forEach((node) => {
-    if (node.type === "lambda") {
-      const cfg = node.config as import("@/domain/entities/node").LambdaConfig;
-      result[`${node.id}-mem`] = {
-        label: `${node.label} — Memória`,
-        key: "memoryMB",
-        min: 128,
-        max: 10240,
-        step: 128,
-        current: cfg.memoryMB,
+    if (node.type === "note" || node.type === "vpc" || node.type === "subnet" || node.type === "security-group") return;
+
+    const def = registry.get(node.type);
+    if (!def) return;
+
+    const cfg = node.config as unknown as Record<string, unknown>;
+
+    // Collect all number fields from all configSections
+    const numberFields: NumberField[] = [];
+    def.configSections.forEach((section) => {
+      section.fields.forEach((field) => {
+        if (field.kind === "number" && !skipKeys.has(field.key)) {
+          numberFields.push(field);
+        }
+      });
+    });
+
+    // Keep at most 2 fields per node (the most cost-impacting ones)
+    const priorityKeys = ["memoryMB", "count", "taskCount", "nodeCount", "storageGB",
+      "storageSizeGB", "requestsPerMonth", "shardCount", "brokerCount",
+      "messagesPerMonth", "dpuHoursPerMonth", "instanceCount", "queriesPerMonth", "dataScanTB"];
+
+    const sorted = [...numberFields].sort((a, b) => {
+      const ai = priorityKeys.indexOf(a.key);
+      const bi = priorityKeys.indexOf(b.key);
+      return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+    });
+
+    sorted.slice(0, 2).forEach((field) => {
+      const current = typeof cfg[field.key] === "number" ? (cfg[field.key] as number) : (field.min ?? 0);
+      const id = `${node.id}-${field.key}`;
+      result[id] = {
+        label: `${node.label} — ${field.label}`,
+        key: field.key,
+        min: field.min ?? 0,
+        max: field.max ?? 1000,
+        step: field.step ?? 1,
+        current,
+        unit: field.unit,
       };
-    } else if (node.type === "ec2") {
-      const cfg = node.config as import("@/domain/entities/node").EC2Config;
-      result[`${node.id}-count`] = {
-        label: `${node.label} — Instâncias`,
-        key: "count",
-        min: 1,
-        max: 20,
-        step: 1,
-        current: cfg.count,
-      };
-    } else if (node.type === "rds") {
-      const cfg = node.config as import("@/domain/entities/node").RDSConfig;
-      result[`${node.id}-storage`] = {
-        label: `${node.label} — Storage (GB)`,
-        key: "storageGB",
-        min: 20,
-        max: 10000,
-        step: 10,
-        current: cfg.storageGB,
-      };
-    } else if (node.type === "s3") {
-      const cfg = node.config as import("@/domain/entities/node").S3Config;
-      result[`${node.id}-size`] = {
-        label: `${node.label} — Armazenamento (GB)`,
-        key: "storageSizeGB",
-        min: 1,
-        max: 100000,
-        step: 100,
-        current: cfg.storageSizeGB,
-      };
-    } else if (node.type === "dynamodb") {
-      const cfg = node.config as import("@/domain/entities/node").DynamoDBConfig;
-      if (cfg.capacityMode === "provisioned") {
-        result[`${node.id}-rcu`] = {
-          label: `${node.label} — RCU`,
-          key: "readCapacityUnits",
-          min: 1,
-          max: 1000,
-          step: 5,
-          current: cfg.readCapacityUnits,
-        };
-      }
-    } else if (node.type === "ecs") {
-      const cfg = node.config as import("@/domain/entities/node").ECSConfig;
-      result[`${node.id}-tasks`] = {
-        label: `${node.label} — Tasks`,
-        key: "taskCount",
-        min: 1,
-        max: 50,
-        step: 1,
-        current: cfg.taskCount,
-      };
-    } else if (node.type === "elasticache") {
-      const cfg = node.config as import("@/domain/entities/node").ElastiCacheConfig;
-      result[`${node.id}-nodes`] = {
-        label: `${node.label} — Nós`,
-        key: "nodeCount",
-        min: 1,
-        max: 20,
-        step: 1,
-        current: cfg.nodeCount,
-      };
-    }
+    });
   });
+
   return result;
 }
 
@@ -215,7 +192,7 @@ export function WhatIfPanel() {
               </div>
               {Object.keys(multipliers).length === 0 && (
                 <p className="text-sm text-muted-foreground text-center py-4">
-                  Adicione serviços como Lambda, EC2, RDS ou S3 para configurar parâmetros.
+                  Adicione serviços ao canvas para configurar parâmetros de custo.
                 </p>
               )}
               {Object.entries(multipliers).map(([id, m], idx) => {
@@ -225,7 +202,7 @@ export function WhatIfPanel() {
                     {idx > 0 && <Separator />}
                     <div className="flex items-center justify-between pt-1">
                       <Label className="text-xs leading-tight">{m.label}</Label>
-                      <span className="text-xs font-medium text-foreground">{current}</span>
+                      <span className="text-xs font-medium text-foreground">{current.toLocaleString()}{m.unit ? ` ${m.unit}` : ""}</span>
                     </div>
                     <Slider
                       min={m.min}

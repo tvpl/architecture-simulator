@@ -212,8 +212,31 @@ const kinesis: ServiceDefinition = {
   ],
 };
 
+const ses: ServiceDefinition = {
+  type: "ses",
+  label: "SES",
+  description: "Serviço de envio de e-mails transacionais",
+  category: "messaging",
+  iconName: "Mail",
+  color: "text-yellow-600",
+  bgColor: "bg-yellow-50 dark:bg-yellow-950/30",
+  borderColor: "border-yellow-500",
+  allowedIncomingProtocols: ["https"],
+  allowedOutgoingProtocols: ["https"],
+  configSections: [
+    {
+      title: "Envio",
+      fields: [
+        { kind: "number", key: "emailsPerMonth", label: "E-mails/mês", min: 0, max: 1_000_000_000, step: 10_000 },
+        { kind: "number", key: "dedicatedIPs", label: "IPs Dedicados", min: 0, max: 100, step: 1 },
+      ],
+    },
+  ],
+};
+
 registry.register(sqs);
 registry.register(sns);
 registry.register(eventbridge);
 registry.register(msk);
 registry.register(kinesis);
+registry.register(ses);

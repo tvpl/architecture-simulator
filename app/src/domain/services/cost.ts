@@ -106,6 +106,59 @@ export function calculateServiceCost(
       return calculateCognitoCost(
         node.config as import("../entities/node").CognitoConfig
       );
+    case "ecr": {
+      const cfg = node.config as import("../entities/node").ECRConfig;
+      const storage = cfg.storageGB * 0.10;
+      const transfer = cfg.imagesCount * 0.05;
+      return { monthlyCostUSD: storage + transfer, details: `${cfg.repositoryCount} repos, ${cfg.storageGB} GB`, lineItems: [{ label: "Storage", amount: storage }, { label: "Data Transfer", amount: transfer }] };
+    }
+    case "ses": {
+      const cfg = node.config as import("../entities/node").SESConfig;
+      const cost = (cfg.emailsPerMonth / 1000) * 0.10;
+      return { monthlyCostUSD: cost, details: `${cfg.emailsPerMonth.toLocaleString()} emails/mês`, lineItems: [{ label: "Emails enviados", amount: cost }] };
+    }
+    case "cloudtrail": {
+      const cfg = node.config as import("../entities/node").CloudTrailConfig;
+      const cost = (cfg.eventsPerMonth / 100_000) * 2.00;
+      return { monthlyCostUSD: cost, details: `${cfg.trailsCount} trails`, lineItems: [{ label: "Eventos", amount: cost }] };
+    }
+    case "codepipeline": {
+      const cfg = node.config as import("../entities/node").CodePipelineConfig;
+      const cost = cfg.pipelinesCount * 1.00;
+      return { monthlyCostUSD: cost, details: `${cfg.pipelinesCount} pipelines`, lineItems: [{ label: "Pipelines ativos", amount: cost }] };
+    }
+    case "xray": {
+      const cfg = node.config as import("../entities/node").XRayConfig;
+      const cost = (cfg.tracesPerMonth / 100_000) * 5.00;
+      return { monthlyCostUSD: cost, details: `${cfg.tracesPerMonth.toLocaleString()} traces/mês`, lineItems: [{ label: "Traces gravados", amount: cost }] };
+    }
+    case "redshift": {
+      const cfg = node.config as import("../entities/node").RedshiftConfig;
+      const nodeCost = cfg.nodeCount * 0.25 * 730; // dc2.large ~$0.25/hr
+      const storageCost = cfg.storageGB * 0.024;
+      return { monthlyCostUSD: nodeCost + storageCost, details: `${cfg.nodeCount}x ${cfg.nodeType}`, lineItems: [{ label: "Nós", amount: nodeCost }, { label: "Storage extra", amount: storageCost }] };
+    }
+    case "athena": {
+      const cfg = node.config as import("../entities/node").AthenaConfig;
+      const cost = cfg.dataScanTB * 5.00;
+      return { monthlyCostUSD: cost, details: `${cfg.dataScanTB} TB escaneados/mês`, lineItems: [{ label: "Dados escaneados", amount: cost }] };
+    }
+    case "opensearch": {
+      const cfg = node.config as import("../entities/node").OpenSearchConfig;
+      const instanceCost = cfg.instanceCount * 0.036 * 730;
+      const storageCost = cfg.storageGB * 0.135;
+      return { monthlyCostUSD: instanceCost + storageCost, details: `${cfg.instanceCount}x ${cfg.instanceType}`, lineItems: [{ label: "Instâncias", amount: instanceCost }, { label: "Storage EBS", amount: storageCost }] };
+    }
+    case "glue": {
+      const cfg = node.config as import("../entities/node").GlueConfig;
+      const cost = cfg.dpuHoursPerMonth * 0.44;
+      return { monthlyCostUSD: cost, details: `${cfg.dpuHoursPerMonth} DPU-horas/mês`, lineItems: [{ label: "DPU-horas", amount: cost }] };
+    }
+    case "sagemaker": {
+      const cfg = node.config as import("../entities/node").SageMakerConfig;
+      const instanceCost = cfg.instanceCount * 0.05 * 730;
+      return { monthlyCostUSD: instanceCost, details: `${cfg.instanceCount}x ${cfg.instanceType}`, lineItems: [{ label: "Instâncias ML", amount: instanceCost }] };
+    }
     case "note":
       return { monthlyCostUSD: 0, details: "Anotação (sem custo)", lineItems: [] };
     default:

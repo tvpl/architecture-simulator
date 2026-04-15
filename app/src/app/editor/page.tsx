@@ -12,6 +12,8 @@ import { ValidationPanel } from "@/components/panels/ValidationPanel";
 import { WhatIfPanel } from "@/components/panels/WhatIfPanel";
 import { CostDashboard } from "@/components/views/CostDashboard";
 import { SimulationView } from "@/components/views/SimulationView";
+import { CommandPalette } from "@/components/dialogs/CommandPalette";
+import { TemplatesDialog } from "@/components/dialogs/TemplatesDialog";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { useFlowStore } from "@/stores/flow-store";
 import { useUIStore } from "@/stores/ui-store";
@@ -60,12 +62,22 @@ function EditorMain() {
   );
 }
 
+function GlobalDialogs() {
+  const templatesDialogOpen = useUIStore((s) => s.templatesDialogOpen);
+  const closeTemplatesDialog = useUIStore((s) => s.closeTemplatesDialog);
+  return (
+    <TemplatesDialog open={templatesDialogOpen} onClose={closeTemplatesDialog} />
+  );
+}
+
 export default function EditorPage() {
   const presentationMode = useUIStore((s) => s.presentationMode);
 
   return (
     <ReactFlowProvider>
       <HashImporter />
+      <CommandPalette />
+      <GlobalDialogs />
       <div className="h-full flex flex-col overflow-hidden">
         <Navbar />
         <div className="flex flex-1 min-h-0 relative">

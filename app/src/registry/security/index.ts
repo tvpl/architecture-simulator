@@ -103,7 +103,31 @@ const cognito: ServiceDefinition = {
   ],
 };
 
+const cloudtrail: ServiceDefinition = {
+  type: "cloudtrail",
+  label: "CloudTrail",
+  description: "Auditoria e rastreamento de API calls",
+  category: "security",
+  iconName: "Activity",
+  color: "text-blue-600",
+  bgColor: "bg-blue-50 dark:bg-blue-950/30",
+  borderColor: "border-blue-500",
+  allowedIncomingProtocols: [],
+  allowedOutgoingProtocols: ["https"],
+  configSections: [
+    {
+      title: "Trilhas",
+      fields: [
+        { kind: "number", key: "trailsCount", label: "Trilhas", min: 1, max: 10, step: 1 },
+        { kind: "number", key: "eventsPerMonth", label: "Eventos/mês", min: 0, max: 1_000_000_000, step: 100_000 },
+        { kind: "switch", key: "s3BucketEnabled", label: "Salvar no S3" },
+      ],
+    },
+  ],
+};
+
 registry.register(iam);
 registry.register(waf);
 registry.register(secretsManager);
 registry.register(cognito);
+registry.register(cloudtrail);

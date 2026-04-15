@@ -61,5 +61,51 @@ const cloudwatch: ServiceDefinition = {
   ],
 };
 
+const codepipeline: ServiceDefinition = {
+  type: "codepipeline",
+  label: "CodePipeline",
+  description: "CI/CD pipeline de entrega contínua",
+  category: "integration",
+  iconName: "GitMerge",
+  color: "text-indigo-500",
+  bgColor: "bg-indigo-50 dark:bg-indigo-950/30",
+  borderColor: "border-indigo-400",
+  allowedIncomingProtocols: ["https"],
+  allowedOutgoingProtocols: ["https"],
+  configSections: [
+    {
+      title: "Pipelines",
+      fields: [
+        { kind: "number", key: "pipelinesCount", label: "Pipelines Ativos", min: 1, max: 1000, step: 1 },
+        { kind: "number", key: "actionsPerMonth", label: "Execuções/mês", min: 0, max: 1_000_000, step: 100 },
+      ],
+    },
+  ],
+};
+
+const xray: ServiceDefinition = {
+  type: "xray",
+  label: "X-Ray",
+  description: "Rastreamento distribuído e debugging",
+  category: "integration",
+  iconName: "Crosshair",
+  color: "text-cyan-500",
+  bgColor: "bg-cyan-50 dark:bg-cyan-950/30",
+  borderColor: "border-cyan-400",
+  allowedIncomingProtocols: [],
+  allowedOutgoingProtocols: [],
+  configSections: [
+    {
+      title: "Traces",
+      fields: [
+        { kind: "number", key: "tracesPerMonth", label: "Traces/mês", min: 0, max: 1_000_000_000, step: 10_000 },
+        { kind: "number", key: "retentionDays", label: "Retenção", min: 1, max: 30, step: 1, unit: "dias" },
+      ],
+    },
+  ],
+};
+
 registry.register(stepFunctions);
 registry.register(cloudwatch);
+registry.register(codepipeline);
+registry.register(xray);

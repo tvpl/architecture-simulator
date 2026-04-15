@@ -16,9 +16,12 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
+import { motion, AnimatePresence } from "framer-motion";
+import { LayoutTemplate, Upload, MousePointer2, Command, Trash2, Copy } from "lucide-react";
 import { useFlowStore, type FlowNode, type FlowEdge, type AppFlowNode, selectInfraHostOptions } from "@/stores/flow-store";
 import { useSelectionStore } from "@/stores/selection-store";
 import { useUIStore } from "@/stores/ui-store";
+import { useCommandPaletteStore } from "@/stores/command-palette-store";
 import { useLayerStore } from "@/stores/layer-store";
 import { useSimulationStore } from "@/stores/simulation-store";
 import type { AWSServiceType } from "@/domain/entities/node";
@@ -111,6 +114,10 @@ export function FlowCanvas() {
   // Choose which nodes/edges to render based on layer
   const activeNodes = isSolutionLayer ? solutionNodes : infraNodes;
   const activeEdges = isSolutionLayer ? solutionEdges : infraEdges;
+
+  // Track multi-selection
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const selectedCount = selectedIds.length;
 
   // ── Context menu ─────────────────────────────────────────────────────────
 
@@ -231,7 +238,33 @@ export function FlowCanvas() {
     clearSelection();
     setContextMenu(null);
     setRenamingNodeId(null);
+    setSelectedIds([]);
   }, [clearSelection]);
+
+  const onSelectionChange = useCallback(
+    ({ nodes: selNodes }: { nodes: FlowNode[] }) => {
+      setSelectedIds(selNodes.map((n) => n.id));
+    },
+    []
+  );
+
+  const bulkDelete = useCallback(() => {
+    const store = useFlowStore.getState();
+    if (isSolutionLayer) {
+      selectedIds.forEach((id) => store.removeAppComponent(id));
+    } else {
+      selectedIds.forEach((id) => store.removeNode(id));
+    }
+    setSelectedIds([]);
+  }, [selectedIds, isSolutionLayer]);
+
+  const bulkDuplicate = useCallback(() => {
+    const store = useFlowStore.getState();
+    if (!isSolutionLayer) {
+      selectedIds.forEach((id) => store.duplicateNode(id));
+    }
+    setSelectedIds([]);
+  }, [selectedIds, isSolutionLayer]);
 
   // ── Animated edges (layer-aware) ─────────────────────────────────────────
 
@@ -305,6 +338,9 @@ export function FlowCanvas() {
       sns: "#f43f5e", eventbridge: "#14b8a6", msk: "#ef4444", kinesis: "#3b82f6",
       s3: "#22c55e", rds: "#1d4ed8", dynamodb: "#4f46e5", elasticache: "#dc2626",
       vpc: "#7c3aed", subnet: "#8b5cf6", waf: "#ea580c", cloudwatch: "#22c55e",
+      ecr: "#ea580c", ses: "#ca8a04", cloudtrail: "#2563eb", codepipeline: "#4f46e5",
+      xray: "#0891b2", redshift: "#7c3aed", athena: "#0d9488", opensearch: "#2563eb",
+      glue: "#d97706", sagemaker: "#16a34a",
       note: "#eab308",
       // L2 app component colors
       microservice: "#6366f1", worker: "#8b5cf6", consumer: "#f59e0b",
@@ -328,12 +364,25 @@ export function FlowCanvas() {
     ? onSolutionConnect
     : onConnect;
 
-  // Empty state text
-  const emptyMessages: Record<string, { title: string; sub: string }> = {
-    architecture: { title: "Arraste componentes AWS para começar", sub: "Construa sua arquitetura" },
-    "solution-design": { title: "Arraste componentes de solução para começar", sub: "Desenhe seus serviços e comunicações" },
-  };
-  const emptyMsg = emptyMessages[activeLayer];
+  const importOnboardingRef = useRef<HTMLInputElement>(null);
+  const { openTemplatesDialog } = useUIStore();
+  const openCommandPalette = useCommandPaletteStore((s) => s.open);
+
+  const handleOnboardingImport = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const data = JSON.parse(evt.target?.result as string);
+        useFlowStore.getState().importProject(data);
+      } catch { /* ignore */ }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  }, []);
+
+  const showEmptyOnboarding = activeNodes.length === 0 && (activeLayer === "architecture" || activeLayer === "solution-design");
 
   return (
     <div className="w-full h-full relative" ref={wrapperRef}>
@@ -350,6 +399,7 @@ export function FlowCanvas() {
         onEdgeClick={onEdgeClick}
         onPaneClick={onPaneClick}
         onNodeContextMenu={onNodeContextMenu}
+        onSelectionChange={onSelectionChange}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         snapToGrid={snapToGrid}
@@ -359,13 +409,16 @@ export function FlowCanvas() {
         minZoom={0.2}
         maxZoom={2}
         deleteKeyCode={["Backspace", "Delete"]}
+        multiSelectionKeyCode={["Meta", "Control"]}
+        selectionOnDrag
         className="bg-background"
       >
         <Background
           variant={BackgroundVariant.Dots}
-          gap={snapToGrid ? 16 : 20}
-          size={1}
-          className="bg-muted/20"
+          gap={snapToGrid ? 16 : 24}
+          size={1.5}
+          color="var(--color-muted-foreground)"
+          className="opacity-25"
         />
 
         <Controls
@@ -382,21 +435,126 @@ export function FlowCanvas() {
 
         <CanvasEffects onStartRename={startRename} />
 
-        {/* Empty state */}
-        {activeNodes.length === 0 && emptyMsg && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="text-center space-y-3 opacity-50">
-              <div className="text-4xl">{isSolutionLayer ? "🧩" : "☁️"}</div>
-              <div className="text-sm font-medium text-muted-foreground">
-                {emptyMsg.title}
+        {/* Empty state onboarding */}
+        {showEmptyOnboarding && (
+          <div className="absolute inset-0 flex items-center justify-center" style={{ pointerEvents: "none" }}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.94, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+              className="pointer-events-auto max-w-md w-full mx-6"
+            >
+              {/* Header */}
+              <div className="text-center mb-6">
+                <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 ring-1 ring-primary/20 mb-4">
+                  <span className="text-2xl">{isSolutionLayer ? "🧩" : "☁️"}</span>
+                </div>
+                <h2 className="text-lg font-semibold text-foreground mb-1">
+                  {isSolutionLayer ? "Desenhe sua solução" : "Construa sua arquitetura"}
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  {isSolutionLayer
+                    ? "Arraste componentes da barra lateral para modelar seus microsserviços e comunicações."
+                    : "Arraste serviços AWS da barra lateral ou escolha um template para começar rapidamente."}
+                </p>
               </div>
-              <div className="text-xs text-muted-foreground">
-                {emptyMsg.sub}
+
+              {/* Action cards */}
+              <div className="grid grid-cols-1 gap-2.5 mb-5">
+                {!isSolutionLayer && (
+                  <button
+                    onClick={openTemplatesDialog}
+                    className="group flex items-center gap-3.5 p-3.5 rounded-xl border border-border bg-card hover:bg-accent hover:border-primary/30 transition-all text-left shadow-sm"
+                  >
+                    <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/15 transition-colors shrink-0">
+                      <LayoutTemplate className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-foreground leading-tight">Carregar template</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">6 arquiteturas prontas para usar</div>
+                    </div>
+                    <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-md font-mono shrink-0">→</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => importOnboardingRef.current?.click()}
+                  className="group flex items-center gap-3.5 p-3.5 rounded-xl border border-border bg-card hover:bg-accent hover:border-primary/30 transition-all text-left shadow-sm"
+                >
+                  <div className="p-2 rounded-lg bg-violet-500/10 group-hover:bg-violet-500/15 transition-colors shrink-0">
+                    <Upload className="w-5 h-5 text-violet-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-foreground leading-tight">Importar JSON</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">Abrir projeto salvo anteriormente</div>
+                  </div>
+                  <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-md font-mono shrink-0">.json</span>
+                </button>
+                <div className="flex items-center gap-3.5 p-3.5 rounded-xl border border-dashed border-border/60 bg-muted/20 text-left">
+                  <div className="p-2 rounded-lg bg-muted shrink-0">
+                    <MousePointer2 className="w-5 h-5 text-muted-foreground" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-foreground leading-tight">Arrastar da barra lateral</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">Solte qualquer serviço no canvas</div>
+                  </div>
+                </div>
               </div>
-            </div>
+
+              {/* Keyboard hints */}
+              <div className="flex items-center justify-center gap-4 text-[11px] text-muted-foreground">
+                <button onClick={openCommandPalette} className="flex items-center gap-1.5 hover:text-foreground transition-colors">
+                  <kbd className="bg-muted border border-border px-1.5 py-0.5 rounded text-[10px] font-mono">⌘K</kbd>
+                  <span>Paleta de comandos</span>
+                </button>
+                <span className="w-px h-3 bg-border" />
+                <span className="flex items-center gap-1.5">
+                  <kbd className="bg-muted border border-border px-1.5 py-0.5 rounded text-[10px] font-mono">Del</kbd>
+                  <span>Remover seleção</span>
+                </span>
+                <span className="w-px h-3 bg-border" />
+                <span className="flex items-center gap-1.5">
+                  <kbd className="bg-muted border border-border px-1.5 py-0.5 rounded text-[10px] font-mono">Ctrl+Z</kbd>
+                  <span>Desfazer</span>
+                </span>
+              </div>
+            </motion.div>
           </div>
         )}
       </ReactFlow>
+
+      {/* Multi-select toolbar */}
+      <AnimatePresence>
+        {selectedCount >= 2 && (
+          <motion.div
+            initial={{ opacity: 0, y: 8, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.96 }}
+            transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+            className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 px-3 py-2 rounded-xl bg-popover border border-border shadow-lg"
+          >
+            <span className="text-xs font-semibold text-foreground px-1.5 mr-1">
+              {selectedCount} selecionados
+            </span>
+            <div className="h-4 w-px bg-border" />
+            <button
+              onClick={bulkDuplicate}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg hover:bg-accent transition-colors text-foreground"
+              title="Duplicar seleção"
+            >
+              <Copy className="w-3.5 h-3.5" />
+              Duplicar
+            </button>
+            <button
+              onClick={bulkDelete}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg hover:bg-destructive/10 text-destructive transition-colors"
+              title="Remover seleção"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Remover
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Context menu */}
       {contextMenu && (
@@ -406,6 +564,9 @@ export function FlowCanvas() {
           onStartRename={startRename}
         />
       )}
+
+      {/* Onboarding import input */}
+      <input ref={importOnboardingRef} type="file" accept=".json" className="hidden" onChange={handleOnboardingImport} />
 
       {/* Inline rename overlay */}
       {renamingNodeId && (() => {

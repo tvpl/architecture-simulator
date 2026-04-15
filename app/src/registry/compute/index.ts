@@ -299,8 +299,32 @@ const fargate: ServiceDefinition = {
   ],
 };
 
+const ecr: ServiceDefinition = {
+  type: "ecr",
+  label: "ECR",
+  description: "Registro de imagens Docker gerenciado",
+  category: "compute",
+  iconName: "Container",
+  color: "text-orange-600",
+  bgColor: "bg-orange-50 dark:bg-orange-950/30",
+  borderColor: "border-orange-500",
+  allowedIncomingProtocols: ["https"],
+  allowedOutgoingProtocols: ["https"],
+  configSections: [
+    {
+      title: "Repositórios",
+      fields: [
+        { kind: "number", key: "repositoryCount", label: "Repositórios", min: 1, max: 1000, step: 1 },
+        { kind: "number", key: "imagesCount", label: "Imagens", min: 1, max: 10000, step: 10 },
+        { kind: "number", key: "storageGB", label: "Armazenamento", min: 1, max: 10000, step: 10, unit: "GB" },
+      ],
+    },
+  ],
+};
+
 registry.register(lambda);
 registry.register(ec2);
 registry.register(ecs);
 registry.register(eks);
 registry.register(fargate);
+registry.register(ecr);

@@ -11,6 +11,7 @@ import "./messaging/index";
 import "./storage/index";
 import "./security/index";
 import "./integration/index";
+import "./analytics/index";
 import "./annotations/index";
 
 // Re-export the populated registry

@@ -502,6 +502,23 @@ export function generateCloudFormationTemplate(
       case "cloudwatch":
         generated = makeCloudWatch(node);
         break;
+      case "ecr": {
+        const id = makeLogicalId(node.label, node.id);
+        generated = { [id]: { Type: "AWS::ECR::Repository", Properties: { RepositoryName: { "Fn::Sub": `\${Environment}-${node.label.toLowerCase().replace(/\s+/g, "-")}` }, ImageScanningConfiguration: { ScanOnPush: true }, Tags: [{ Key: "Environment", Value: { Ref: "Environment" } }] } } };
+        break;
+      }
+      case "redshift": {
+        const cfg = node.config as import("../entities/node").RedshiftConfig;
+        const id = makeLogicalId(node.label, node.id);
+        generated = { [id]: { Type: "AWS::Redshift::Cluster", Properties: { ClusterType: cfg.nodeCount > 1 ? "multi-node" : "single-node", DBName: "datawarehouse", MasterUsername: "admin", MasterUserPassword: { "Fn::Sub": `\${Environment}RedshiftPassword` }, NodeType: cfg.nodeType ?? "dc2.large", NumberOfNodes: cfg.nodeCount, Encrypted: true, Tags: [{ Key: "Environment", Value: { Ref: "Environment" } }] } } };
+        break;
+      }
+      case "opensearch": {
+        const id = makeLogicalId(node.label, node.id);
+        const cfg = node.config as import("../entities/node").OpenSearchConfig;
+        generated = { [id]: { Type: "AWS::OpenSearchService::Domain", Properties: { DomainName: { "Fn::Sub": `\${Environment}-${node.label.toLowerCase().replace(/\s+/g, "-")}` }, ClusterConfig: { InstanceType: cfg.instanceType, InstanceCount: cfg.instanceCount, DedicatedMasterEnabled: cfg.dedicatedMaster }, EBSOptions: { EBSEnabled: true, VolumeSize: cfg.storageGB, VolumeType: "gp3" }, Tags: [{ Key: "Environment", Value: { Ref: "Environment" } }] } } };
+        break;
+      }
       case "note":
         // Annotations are canvas-only, not CloudFormation resources
         generated = {};
