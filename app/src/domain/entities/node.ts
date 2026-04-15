@@ -7,6 +7,7 @@ export const AWS_SERVICE_TYPES = [
   "eks",
   "lambda",
   "fargate",
+  "ecr",
   // Networking
   "vpc",
   "subnet",
@@ -22,6 +23,7 @@ export const AWS_SERVICE_TYPES = [
   "eventbridge",
   "msk",
   "kinesis",
+  "ses",
   // Storage
   "s3",
   "rds",
@@ -33,9 +35,18 @@ export const AWS_SERVICE_TYPES = [
   "waf",
   "secrets-manager",
   "cognito",
+  "cloudtrail",
   // Integration
   "step-functions",
   "cloudwatch",
+  "codepipeline",
+  "xray",
+  // Analytics
+  "redshift",
+  "athena",
+  "opensearch",
+  "glue",
+  "sagemaker",
   // Annotations
   "note",
 ] as const;
@@ -49,6 +60,7 @@ export const NODE_CATEGORIES = [
   "storage",
   "security",
   "integration",
+  "analytics",
   "annotations",
 ] as const;
 
@@ -234,6 +246,66 @@ export interface CloudWatchConfig {
   alarmsCount: number;
 }
 
+export interface ECRConfig {
+  repositoryCount: number;
+  imagesCount: number;
+  storageGB: number;
+}
+
+export interface SESConfig {
+  emailsPerMonth: number;
+  dedicatedIPs: number;
+  bounceRateTarget: number;
+}
+
+export interface CloudTrailConfig {
+  trailsCount: number;
+  eventsPerMonth: number;
+  s3BucketEnabled: boolean;
+}
+
+export interface CodePipelineConfig {
+  pipelinesCount: number;
+  actionsPerMonth: number;
+}
+
+export interface XRayConfig {
+  tracesPerMonth: number;
+  retentionDays: number;
+}
+
+export interface RedshiftConfig {
+  nodeType: string;
+  nodeCount: number;
+  storageGB: number;
+  multiAZ: boolean;
+}
+
+export interface AthenaConfig {
+  queriesPerMonth: number;
+  dataScanTB: number;
+}
+
+export interface OpenSearchConfig {
+  instanceType: string;
+  instanceCount: number;
+  storageGB: number;
+  dedicatedMaster: boolean;
+}
+
+export interface GlueConfig {
+  jobsCount: number;
+  dpuHoursPerMonth: number;
+  crawlersCount: number;
+}
+
+export interface SageMakerConfig {
+  instanceType: string;
+  instanceCount: number;
+  storageGB: number;
+  endpointEnabled: boolean;
+}
+
 export interface NoteConfig {
   content: string;
   color: "yellow" | "blue" | "green" | "pink" | "purple";
@@ -247,6 +319,7 @@ export interface ServiceConfigMap {
   eks: EKSConfig;
   lambda: LambdaConfig;
   fargate: FargateConfig;
+  ecr: ECRConfig;
   vpc: VPCConfig;
   subnet: SubnetConfig;
   alb: ALBConfig;
@@ -260,6 +333,7 @@ export interface ServiceConfigMap {
   eventbridge: EventBridgeConfig;
   msk: MSKConfig;
   kinesis: KinesisConfig;
+  ses: SESConfig;
   s3: S3Config;
   rds: RDSConfig;
   dynamodb: DynamoDBConfig;
@@ -269,8 +343,16 @@ export interface ServiceConfigMap {
   waf: WAFConfig;
   "secrets-manager": SecretsManagerConfig;
   cognito: CognitoConfig;
+  cloudtrail: CloudTrailConfig;
   "step-functions": StepFunctionsConfig;
   cloudwatch: CloudWatchConfig;
+  codepipeline: CodePipelineConfig;
+  xray: XRayConfig;
+  redshift: RedshiftConfig;
+  athena: AthenaConfig;
+  opensearch: OpenSearchConfig;
+  glue: GlueConfig;
+  sagemaker: SageMakerConfig;
   note: NoteConfig;
 }
 
@@ -309,6 +391,7 @@ export const SERVICE_CATEGORY_MAP: Record<AWSServiceType, NodeCategory> = {
   eks: "compute",
   lambda: "compute",
   fargate: "compute",
+  ecr: "compute",
   vpc: "networking",
   subnet: "networking",
   alb: "networking",
@@ -322,6 +405,7 @@ export const SERVICE_CATEGORY_MAP: Record<AWSServiceType, NodeCategory> = {
   eventbridge: "messaging",
   msk: "messaging",
   kinesis: "messaging",
+  ses: "messaging",
   s3: "storage",
   rds: "storage",
   dynamodb: "storage",
@@ -331,7 +415,15 @@ export const SERVICE_CATEGORY_MAP: Record<AWSServiceType, NodeCategory> = {
   waf: "security",
   "secrets-manager": "security",
   cognito: "security",
+  cloudtrail: "security",
   "step-functions": "integration",
   cloudwatch: "integration",
+  codepipeline: "integration",
+  xray: "integration",
+  redshift: "analytics",
+  athena: "analytics",
+  opensearch: "analytics",
+  glue: "analytics",
+  sagemaker: "analytics",
   note: "annotations",
 };

@@ -10,6 +10,8 @@ interface UIState {
   validationPanelOpen: boolean;
   /** What-if cost analysis panel */
   whatIfPanelOpen: boolean;
+  /** Templates dialog */
+  templatesDialogOpen: boolean;
   /** Snap nodes to a 16×16 grid while dragging */
   snapToGrid: boolean;
   /** Presentation mode: hides sidebar and all panels, full-screen canvas */
@@ -31,6 +33,8 @@ interface UIState {
   openValidationPanel: () => void;
   closeValidationPanel: () => void;
   toggleWhatIfPanel: () => void;
+  openTemplatesDialog: () => void;
+  closeTemplatesDialog: () => void;
   toggleSnapToGrid: () => void;
   togglePresentationMode: () => void;
   requestAutoLayout: (direction?: "TB" | "LR") => void;
@@ -44,6 +48,7 @@ export const useUIStore = create<UIState>()((set) => ({
   costPanelOpen: false,
   validationPanelOpen: false,
   whatIfPanelOpen: false,
+  templatesDialogOpen: false,
   snapToGrid: false,
   presentationMode: false,
   autoLayoutPending: false,
@@ -71,6 +76,9 @@ export const useUIStore = create<UIState>()((set) => ({
 
   toggleWhatIfPanel: () =>
     set((s) => ({ whatIfPanelOpen: !s.whatIfPanelOpen })),
+
+  openTemplatesDialog: () => set({ templatesDialogOpen: true }),
+  closeTemplatesDialog: () => set({ templatesDialogOpen: false }),
 
   toggleSnapToGrid: () =>
     set((s) => ({ snapToGrid: !s.snapToGrid })),

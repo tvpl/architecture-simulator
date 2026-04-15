@@ -5,7 +5,49 @@
  * Modern design: node info header, grouped actions, keyboard shortcut badges.
  */
 import React, { useEffect, useRef } from "react";
-import { Copy, Trash2, PenLine, Layers, Server, ArrowUpDown, Settings } from "lucide-react";
+import { Copy, Trash2, PenLine, Server, ArrowUpDown, Settings, Zap } from "lucide-react";
+
+// ── Config presets per service type ───────────────────────────────────────────
+type PresetConfig = Record<string, unknown>;
+interface ServicePreset { label: string; config: PresetConfig }
+
+const SERVICE_PRESETS: Partial<Record<string, ServicePreset[]>> = {
+  lambda: [
+    { label: "Dev", config: { memoryMB: 128, timeoutSec: 30, requestsPerMonth: 100_000 } },
+    { label: "Prod", config: { memoryMB: 1024, timeoutSec: 30, requestsPerMonth: 5_000_000 } },
+    { label: "High-Mem", config: { memoryMB: 3008, timeoutSec: 30, requestsPerMonth: 10_000_000 } },
+  ],
+  ec2: [
+    { label: "t3.micro", config: { instanceType: "t3.micro", count: 1 } },
+    { label: "t3.medium", config: { instanceType: "t3.medium", count: 2 } },
+    { label: "m5.large", config: { instanceType: "m5.large", count: 2 } },
+  ],
+  ecs: [
+    { label: "Small", config: { cpu: 256, memoryMB: 512, taskCount: 1 } },
+    { label: "Standard", config: { cpu: 512, memoryMB: 1024, taskCount: 2 } },
+    { label: "Large", config: { cpu: 1024, memoryMB: 2048, taskCount: 5 } },
+  ],
+  rds: [
+    { label: "Dev", config: { instanceClass: "db.t3.micro", storageGB: 20, multiAZ: false, readReplicas: 0 } },
+    { label: "Prod", config: { instanceClass: "db.m5.large", storageGB: 100, multiAZ: true, readReplicas: 1 } },
+    { label: "HA", config: { instanceClass: "db.r5.large", storageGB: 500, multiAZ: true, readReplicas: 2 } },
+  ],
+  dynamodb: [
+    { label: "On-Demand", config: { capacityMode: "on-demand", readCapacityUnits: 0, writeCapacityUnits: 0 } },
+    { label: "Low", config: { capacityMode: "provisioned", readCapacityUnits: 5, writeCapacityUnits: 5 } },
+    { label: "High", config: { capacityMode: "provisioned", readCapacityUnits: 100, writeCapacityUnits: 100 } },
+  ],
+  elasticache: [
+    { label: "t3.micro ×1", config: { nodeType: "cache.t3.micro", nodeCount: 1 } },
+    { label: "t3.medium ×2", config: { nodeType: "cache.t3.medium", nodeCount: 2 } },
+    { label: "r6g.large ×3", config: { nodeType: "cache.r6g.large", nodeCount: 3 } },
+  ],
+  eks: [
+    { label: "Dev (1 nó)", config: { nodeCount: 1, instanceType: "t3.medium", minNodes: 1, maxNodes: 3 } },
+    { label: "Prod (3 nós)", config: { nodeCount: 3, instanceType: "m5.large", minNodes: 2, maxNodes: 10 } },
+    { label: "HA (5 nós)", config: { nodeCount: 5, instanceType: "m5.xlarge", minNodes: 3, maxNodes: 20 } },
+  ],
+};
 import { cn } from "@/lib/utils";
 import { useFlowStore, selectInfraHostOptions } from "@/stores/flow-store";
 import { useSelectionStore } from "@/stores/selection-store";
@@ -35,6 +77,7 @@ export function NodeContextMenu({ menu, onClose, onStartRename }: NodeContextMen
     solutionNodes,
     nodes,
     updateAppComponentData,
+    updateNodeConfig,
   } = useFlowStore();
   const infraHosts = useFlowStore(selectInfraHostOptions);
   const { selectNode } = useSelectionStore();
@@ -191,6 +234,40 @@ export function NodeContextMenu({ menu, onClose, onStartRename }: NodeContextMen
                     >
                       <ArrowUpDown className="w-2.5 h-2.5 shrink-0" />
                       {count}
+                    </button>
+                  );
+                })}
+              </div>
+            </MenuSection>
+          </div>
+        </>
+      )}
+
+      {/* L1-specific: Config presets */}
+      {!isL2 && l1Node && nodeType && SERVICE_PRESETS[nodeType] && (
+        <>
+          <div className="border-t border-border/60" />
+          <div className="py-1">
+            <MenuSection label="Configurações rápidas">
+              <div className="flex gap-1 px-3 py-1.5 flex-wrap">
+                {SERVICE_PRESETS[nodeType]!.map((preset) => {
+                  const cfg = l1Node.data.config as unknown as Record<string, unknown>;
+                  const isActive = Object.entries(preset.config).every(([k, v]) => cfg[k] === v);
+                  return (
+                    <button
+                      key={preset.label}
+                      onClick={() =>
+                        action(() => updateNodeConfig(menu.nodeId, preset.config))
+                      }
+                      className={cn(
+                        "flex items-center justify-center gap-0.5 px-2.5 h-7 rounded-md text-xs font-semibold transition-all",
+                        isActive
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+                      )}
+                    >
+                      <Zap className="w-2.5 h-2.5 shrink-0" />
+                      {preset.label}
                     </button>
                   );
                 })}

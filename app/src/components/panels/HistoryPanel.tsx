@@ -1,9 +1,10 @@
 "use client";
 import React, { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { X, RotateCcw, Trash2, Clock, Save } from "lucide-react";
+import { X, RotateCcw, Trash2, Clock, Save, Plus, Minus } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useHistoryStore } from "@/stores/history-store";
+import { useHistoryStore, type Snapshot } from "@/stores/history-store";
+import { useFlowStore } from "@/stores/flow-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -19,9 +20,55 @@ function formatTimestamp(iso: string): string {
   });
 }
 
+interface DiffBadge {
+  nodeDiff: number;
+  edgeDiff: number;
+}
+
+function computeDiff(snap: Snapshot, currentNodes: number, currentEdges: number): DiffBadge {
+  return {
+    nodeDiff: snap.nodes.length - currentNodes,
+    edgeDiff: snap.edges.length - currentEdges,
+  };
+}
+
+function DiffBadges({ diff }: { diff: DiffBadge }) {
+  if (diff.nodeDiff === 0 && diff.edgeDiff === 0) {
+    return <span className="text-[9px] text-muted-foreground">igual ao atual</span>;
+  }
+  return (
+    <div className="flex items-center gap-1 flex-wrap">
+      {diff.nodeDiff !== 0 && (
+        <span className={cn(
+          "inline-flex items-center gap-0.5 text-[9px] font-medium px-1.5 py-0.5 rounded-full",
+          diff.nodeDiff > 0
+            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
+            : "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400"
+        )}>
+          {diff.nodeDiff > 0 ? <Plus className="w-2 h-2" /> : <Minus className="w-2 h-2" />}
+          {Math.abs(diff.nodeDiff)} {Math.abs(diff.nodeDiff) === 1 ? "nó" : "nós"}
+        </span>
+      )}
+      {diff.edgeDiff !== 0 && (
+        <span className={cn(
+          "inline-flex items-center gap-0.5 text-[9px] font-medium px-1.5 py-0.5 rounded-full",
+          diff.edgeDiff > 0
+            ? "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400"
+            : "bg-orange-100 text-orange-700 dark:bg-orange-950/40 dark:text-orange-400"
+        )}>
+          {diff.edgeDiff > 0 ? <Plus className="w-2 h-2" /> : <Minus className="w-2 h-2" />}
+          {Math.abs(diff.edgeDiff)} {Math.abs(diff.edgeDiff) === 1 ? "conexão" : "conexões"}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export function HistoryPanel() {
   const { snapshots, historyPanelOpen, saveSnapshot, loadSnapshot, deleteSnapshot, toggleHistoryPanel } =
     useHistoryStore();
+  const currentNodeCount = useFlowStore((s) => s.nodes.length);
+  const currentEdgeCount = useFlowStore((s) => s.edges.length);
 
   const [snapshotName, setSnapshotName] = useState("");
 
@@ -96,18 +143,16 @@ export function HistoryPanel() {
                 .map((snap, idx) => (
                   <div key={snap.id}>
                     {idx > 0 && <Separator className="mb-2" />}
-                    <div className="rounded-lg border border-border p-2.5 space-y-1.5">
+                    <div className="rounded-lg border border-border p-2.5 space-y-1.5 hover:border-primary/30 transition-colors">
                       <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           <div className="text-sm font-medium text-foreground truncate">{snap.name}</div>
                           <div className="text-xs text-muted-foreground">
                             {formatTimestamp(snap.timestamp)}
                           </div>
-                          {snap.projectName && (
-                            <div className="text-xs text-muted-foreground truncate">
-                              Projeto: {snap.projectName}
-                            </div>
-                          )}
+                          <div className="mt-1.5">
+                            <DiffBadges diff={computeDiff(snap, currentNodeCount, currentEdgeCount)} />
+                          </div>
                         </div>
                         <Button
                           variant="ghost"

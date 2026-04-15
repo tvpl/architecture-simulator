@@ -1,5 +1,5 @@
 "use client";
-import React, { useRef, useCallback, useState } from "react";
+import React, { useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
   Play,
@@ -27,7 +27,6 @@ import {
   Eye,
   Command,
 } from "lucide-react";
-import { TemplatesDialog } from "@/components/dialogs/TemplatesDialog";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { LayerSwitcher } from "./LayerSwitcher";
@@ -68,9 +67,8 @@ export function Navbar() {
     validationPanelOpen,
     toggleWhatIfPanel,
     whatIfPanelOpen,
+    openTemplatesDialog,
   } = useUIStore();
-
-  const [templatesOpen, setTemplatesOpen] = useState(false);
   const { theme, toggleTheme } = useThemeStore();
   const { toggleHistoryPanel } = useHistoryStore();
   const { open: openCommandPalette } = useCommandPaletteStore();
@@ -414,7 +412,7 @@ export function Navbar() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
               <DropdownMenuLabel>Biblioteca</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => setTemplatesOpen(true)}>
+              <DropdownMenuItem onClick={openTemplatesDialog}>
                 <LayoutTemplate className="w-3.5 h-3.5 text-muted-foreground" />
                 Templates
               </DropdownMenuItem>
@@ -506,7 +504,6 @@ export function Navbar() {
       </nav>
 
       <input ref={importRef} type="file" accept=".json" className="hidden" onChange={handleFileChange} />
-      <TemplatesDialog open={templatesOpen} onClose={() => setTemplatesOpen(false)} />
     </TooltipProvider>
   );
 }

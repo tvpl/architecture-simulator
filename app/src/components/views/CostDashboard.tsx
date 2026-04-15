@@ -13,7 +13,12 @@ import {
   Globe,
   Layers,
   CalendarDays,
+  Bell,
+  BellRing,
+  AlertTriangle,
+  CheckCircle2,
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useFlowStore, selectDomainNodes, selectSolutionDomainNodes } from "@/stores/flow-store";
 import { calculateServiceCost, estimateAppComponentCost } from "@/domain/services/cost";
@@ -36,6 +41,7 @@ export function CostDashboard() {
   const domainNodes = useFlowStore(selectDomainNodes);
   const appNodes = useFlowStore(selectSolutionDomainNodes);
   const [currency, setCurrency] = useState<"USD" | "BRL">("USD");
+  const [budgetInput, setBudgetInput] = useState("");
 
   const fmt = (v: number) => currency === "BRL" ? formatBRL(v, BRL_RATE) : formatUSD(v);
 
@@ -87,6 +93,17 @@ export function CostDashboard() {
     appCosts.reduce((sum, s) => sum + s.monthlyCost, 0);
 
   const annualProjection = totalMonthlyCost * 12;
+
+  const budgetUSD = budgetInput === "" ? null : Number(budgetInput);
+  const budgetValid = budgetUSD !== null && !isNaN(budgetUSD) && budgetUSD > 0;
+  const budgetPct = budgetValid ? Math.min((totalMonthlyCost / budgetUSD!) * 100, 999) : 0;
+  const budgetStatus = !budgetValid
+    ? "none"
+    : budgetPct >= 100
+    ? "over"
+    : budgetPct >= 80
+    ? "warn"
+    : "ok";
 
   // Group by category
   const categoryBreakdown = useMemo(() => {
@@ -165,6 +182,76 @@ export function CostDashboard() {
             accent="text-purple-600 dark:text-purple-400"
             bg="bg-purple-50 dark:bg-purple-950/30"
           />
+        </div>
+
+        {/* Budget alert */}
+        <div className="bg-card border border-border rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            {budgetStatus === "over" ? (
+              <BellRing className="w-4 h-4 text-red-500 animate-pulse" />
+            ) : budgetStatus === "warn" ? (
+              <AlertTriangle className="w-4 h-4 text-amber-500" />
+            ) : (
+              <Bell className="w-4 h-4 text-muted-foreground" />
+            )}
+            <h3 className="text-sm font-semibold">Alerta de Orçamento</h3>
+          </div>
+
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-xs text-muted-foreground shrink-0">Limite mensal (USD):</span>
+            <Input
+              className="h-7 text-sm flex-1 max-w-[140px]"
+              type="number"
+              min={0}
+              placeholder="ex: 500"
+              value={budgetInput}
+              onChange={(e) => setBudgetInput(e.target.value)}
+            />
+          </div>
+
+          {budgetStatus !== "none" && (
+            <div className="space-y-2">
+              {/* Progress bar */}
+              <div className="h-2.5 bg-muted rounded-full overflow-hidden">
+                <div
+                  className={cn(
+                    "h-full rounded-full transition-all",
+                    budgetStatus === "over"
+                      ? "bg-red-500"
+                      : budgetStatus === "warn"
+                      ? "bg-amber-400"
+                      : "bg-emerald-500"
+                  )}
+                  style={{ width: `${Math.min(budgetPct, 100)}%` }}
+                />
+              </div>
+
+              {/* Status row */}
+              <div className={cn(
+                "flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium",
+                budgetStatus === "over"
+                  ? "bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400"
+                  : budgetStatus === "warn"
+                  ? "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400"
+                  : "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400"
+              )}>
+                {budgetStatus === "over" ? (
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                ) : budgetStatus === "warn" ? (
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                ) : (
+                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                )}
+                <span>
+                  {budgetStatus === "over"
+                    ? `Orçamento excedido em ${formatUSD(totalMonthlyCost - budgetUSD!)} (${budgetPct.toFixed(0)}%)`
+                    : budgetStatus === "warn"
+                    ? `${budgetPct.toFixed(0)}% do orçamento utilizado — atenção necessária`
+                    : `${budgetPct.toFixed(0)}% do orçamento utilizado — dentro do limite`}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* T-6.5: Monthly projections */}

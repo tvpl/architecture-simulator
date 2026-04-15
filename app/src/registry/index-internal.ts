@@ -16,6 +16,7 @@ const CATEGORY_LABELS: Record<NodeCategory, string> = {
   storage: "Armazenamento",
   security: "Segurança",
   integration: "Integração",
+  analytics: "Analytics & ML",
   annotations: "Anotações",
 };
 
@@ -26,6 +27,7 @@ const CATEGORY_ORDER: NodeCategory[] = [
   "storage",
   "security",
   "integration",
+  "analytics",
   "annotations",
 ];
 

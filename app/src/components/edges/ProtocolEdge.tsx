@@ -2,8 +2,9 @@
 /**
  * ProtocolEdge — connection renderer with protocol indicator and latency label.
  * Shows animated particles (SVG animateMotion) during simulation.
+ * Supports inline label editing via double-click.
  */
-import React, { memo } from "react";
+import React, { memo, useState, useRef, useCallback } from "react";
 import {
   BaseEdge,
   EdgeLabelRenderer,
@@ -15,7 +16,7 @@ import { PROTOCOL_INFO } from "@/domain/entities/edge";
 import { useLayerStore } from "@/stores/layer-store";
 import { useSelectionStore } from "@/stores/selection-store";
 import { useSimulationStore } from "@/stores/simulation-store";
-import type { FlowEdge } from "@/stores/flow-store";
+import { useFlowStore, type FlowEdge } from "@/stores/flow-store";
 import type { ConnectionEdge } from "@/domain/entities/edge";
 
 const ProtocolEdge = memo(function ProtocolEdge({
@@ -34,6 +35,31 @@ const ProtocolEdge = memo(function ProtocolEdge({
   const selectEdge = useSelectionStore((s) => s.selectEdge);
   const simStatus = useSimulationStore((s) => s.status);
   const simResults = useSimulationStore((s) => s.result);
+  const updateEdgeData = useFlowStore((s) => s.updateEdgeData);
+
+  // ── Inline label editing ─────────────────────────────────────────────────
+  const [editing, setEditing] = useState(false);
+  const [editValue, setEditValue] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const startEdit = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditValue(edgeData?.label ?? "");
+    setEditing(true);
+    setTimeout(() => inputRef.current?.select(), 0);
+  }, [edgeData?.label]);
+
+  const commitEdit = useCallback(() => {
+    const trimmed = editValue.trim();
+    updateEdgeData(id, { label: trimmed || undefined });
+    setEditing(false);
+  }, [editValue, id, updateEdgeData]);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === "Enter") commitEdit();
+    else if (e.key === "Escape") setEditing(false);
+    e.stopPropagation();
+  }, [commitEdit]);
 
   const protocol = edgeData?.protocol ?? "https";
   const protocolInfo = PROTOCOL_INFO[protocol];
@@ -130,29 +156,67 @@ const ProtocolEdge = memo(function ProtocolEdge({
           <div
             className={cn(
               "absolute pointer-events-all nopan",
-              "flex items-center gap-1 rounded-full px-2 py-0.5",
-              "text-[10px] font-semibold border",
-              "cursor-pointer hover:ring-1 hover:ring-primary/40",
-              "bg-background/90 backdrop-blur-sm shadow-sm",
-              hasBottleneck && activeLayer === "simulation" && "ring-1 ring-red-400"
+              "flex flex-col items-center gap-0.5",
             )}
             style={{
               transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
             }}
-            onClick={() => selectEdge(id)}
           >
-            <span
-              className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-              style={{ backgroundColor: protocolInfo.color }}
-            />
-            <span style={{ color: protocolInfo.color }}>
-              {protocolInfo.displayName}
-            </span>
-            {edgeData?.latencyMs && activeLayer === "simulation" && (
-              <span className="text-muted-foreground ml-1">
-                {edgeData.latencyMs}ms
+            {/* Protocol badge */}
+            <div
+              className={cn(
+                "flex items-center gap-1 rounded-full px-2 py-0.5",
+                "text-[10px] font-semibold border",
+                "cursor-pointer hover:ring-1 hover:ring-primary/40",
+                "bg-background/90 backdrop-blur-sm shadow-sm",
+                hasBottleneck && activeLayer === "simulation" && "ring-1 ring-red-400"
+              )}
+              onClick={() => selectEdge(id)}
+              onDoubleClick={startEdit}
+              title="Duplo clique para editar rótulo"
+            >
+              <span
+                className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                style={{ backgroundColor: protocolInfo.color }}
+              />
+              <span style={{ color: protocolInfo.color }}>
+                {protocolInfo.displayName}
               </span>
-            )}
+              {edgeData?.latencyMs && activeLayer === "simulation" && (
+                <span className="text-muted-foreground ml-1">
+                  {edgeData.latencyMs}ms
+                </span>
+              )}
+            </div>
+
+            {/* Custom label / inline editor */}
+            {editing ? (
+              <input
+                ref={inputRef}
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                onBlur={commitEdit}
+                onKeyDown={handleKeyDown}
+                className={cn(
+                  "mt-0.5 w-28 rounded-md border border-primary px-1.5 py-0.5",
+                  "text-[10px] bg-background text-foreground outline-none shadow-md",
+                  "nopan nodrag"
+                )}
+                autoFocus
+              />
+            ) : edgeData?.label ? (
+              <span
+                className={cn(
+                  "mt-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-medium",
+                  "bg-background/80 border border-border text-foreground cursor-pointer",
+                  "hover:border-primary/50 transition-colors"
+                )}
+                onDoubleClick={startEdit}
+                title="Duplo clique para editar"
+              >
+                {edgeData.label}
+              </span>
+            ) : null}
           </div>
         </EdgeLabelRenderer>
       )}

@@ -35,6 +35,16 @@ const BASE_AVAILABILITY: Record<string, number> = {
   vpc: 100,
   subnet: 100,
   "security-group": 100,
+  ecr: 99.9,
+  ses: 99.9,
+  cloudtrail: 99.9,
+  codepipeline: 99.9,
+  xray: 99.9,
+  redshift: 99.9,
+  athena: 99.9,
+  opensearch: 99.9,
+  glue: 99.9,
+  sagemaker: 99.9,
   note: 100,
 };
 

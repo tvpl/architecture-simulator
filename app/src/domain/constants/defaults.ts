@@ -154,6 +154,56 @@ export const SERVICE_DEFAULTS: ServiceConfigMap = {
     logsIngestGB: 10,
     alarmsCount: 20,
   },
+  ecr: {
+    repositoryCount: 5,
+    imagesCount: 50,
+    storageGB: 10,
+  },
+  ses: {
+    emailsPerMonth: 100_000,
+    dedicatedIPs: 0,
+    bounceRateTarget: 5,
+  },
+  cloudtrail: {
+    trailsCount: 1,
+    eventsPerMonth: 1_000_000,
+    s3BucketEnabled: true,
+  },
+  codepipeline: {
+    pipelinesCount: 3,
+    actionsPerMonth: 10_000,
+  },
+  xray: {
+    tracesPerMonth: 100_000,
+    retentionDays: 30,
+  },
+  redshift: {
+    nodeType: "dc2.large",
+    nodeCount: 2,
+    storageGB: 160,
+    multiAZ: false,
+  },
+  athena: {
+    queriesPerMonth: 1_000,
+    dataScanTB: 1,
+  },
+  opensearch: {
+    instanceType: "t3.small.search",
+    instanceCount: 2,
+    storageGB: 100,
+    dedicatedMaster: false,
+  },
+  glue: {
+    jobsCount: 5,
+    dpuHoursPerMonth: 100,
+    crawlersCount: 3,
+  },
+  sagemaker: {
+    instanceType: "ml.t3.medium",
+    instanceCount: 1,
+    storageGB: 50,
+    endpointEnabled: true,
+  },
   note: {
     content: "Adicione uma anotação aqui...",
     color: "yellow",

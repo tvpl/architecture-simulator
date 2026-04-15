@@ -40,6 +40,16 @@ const BASE_LATENCY_MS: Record<AWSServiceType, number> = {
   cognito: 50,
   "step-functions": 100,
   cloudwatch: 0,
+  codepipeline: 0,
+  xray: 0,
+  ecr: 50,
+  ses: 100,
+  cloudtrail: 0,
+  redshift: 500,
+  athena: 2000,
+  opensearch: 20,
+  glue: 0,
+  sagemaker: 200,
   note: 0,
 };
 
