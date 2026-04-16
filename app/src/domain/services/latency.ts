@@ -50,6 +50,9 @@ const BASE_LATENCY_MS: Record<AWSServiceType, number> = {
   opensearch: 20,
   glue: 0,
   sagemaker: 200,
+  bedrock: 800,
+  "sfn-express": 50,
+  "eventbridge-pipes": 200,
   note: 0,
   region: 0,
 };

@@ -47,6 +47,11 @@ export const AWS_SERVICE_TYPES = [
   "opensearch",
   "glue",
   "sagemaker",
+  "bedrock",
+  // Integration (express)
+  "sfn-express",
+  // Messaging (pipes)
+  "eventbridge-pipes",
   // Annotations
   "note",
   "region",
@@ -307,6 +312,24 @@ export interface SageMakerConfig {
   endpointEnabled: boolean;
 }
 
+export interface BedrockConfig {
+  modelId: string;
+  requestsPerMonth: number;
+  inputTokensPerRequest: number;
+  outputTokensPerRequest: number;
+}
+
+export interface SFNExpressConfig {
+  executionsPerMonth: number;
+  avgDurationSec: number;
+  memoryMB: number;
+}
+
+export interface EventBridgePipesConfig {
+  eventsPerMonth: number;
+  filterRatio: number;
+}
+
 export interface NoteConfig {
   content: string;
   color: "yellow" | "blue" | "green" | "pink" | "purple";
@@ -359,6 +382,9 @@ export interface ServiceConfigMap {
   opensearch: OpenSearchConfig;
   glue: GlueConfig;
   sagemaker: SageMakerConfig;
+  bedrock: BedrockConfig;
+  "sfn-express": SFNExpressConfig;
+  "eventbridge-pipes": EventBridgePipesConfig;
   note: NoteConfig;
   region: RegionConfig;
 }
@@ -432,6 +458,9 @@ export const SERVICE_CATEGORY_MAP: Record<AWSServiceType, NodeCategory> = {
   opensearch: "analytics",
   glue: "analytics",
   sagemaker: "analytics",
+  bedrock: "analytics",
+  "sfn-express": "integration",
+  "eventbridge-pipes": "messaging",
   note: "annotations",
   region: "annotations",
 };

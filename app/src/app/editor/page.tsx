@@ -11,6 +11,7 @@ import { SimulationPanel } from "@/components/simulation/SimulationPanel";
 import { ValidationPanel } from "@/components/panels/ValidationPanel";
 import { WhatIfPanel } from "@/components/panels/WhatIfPanel";
 import { WellArchitectedPanel } from "@/components/panels/WellArchitectedPanel";
+import { ComparisonPanel } from "@/components/panels/ComparisonPanel";
 import { CostDashboard } from "@/components/views/CostDashboard";
 import { SimulationView } from "@/components/views/SimulationView";
 import { CommandPalette } from "@/components/dialogs/CommandPalette";
@@ -68,6 +69,7 @@ function EditorMain() {
         {!presentationMode && viewType === "canvas" && !propertiesPanelDocked && <PropertiesPanel />}
         {!presentationMode && viewType === "canvas" && <WhatIfPanel />}
         {!presentationMode && viewType === "canvas" && <WellArchitectedPanel />}
+        {!presentationMode && viewType === "canvas" && <ComparisonPanel />}
         {!presentationMode && <HistoryPanel />}
         {!presentationMode && viewType !== "dashboard" && <SimulationPanel />}
         {!presentationMode && viewType === "canvas" && <ValidationPanel />}

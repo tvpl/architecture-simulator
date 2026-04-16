@@ -218,8 +218,8 @@ function NodePropertiesContent({
           <div className="text-sm font-semibold text-foreground truncate">{data.label}</div>
           <div className="text-xs text-muted-foreground">{def?.label ?? data.type}</div>
         </div>
-        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={onClose}>
         {extraHeaderActions}
+        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={onClose}>
           <X className="w-4 h-4" />
         </Button>
       </div>

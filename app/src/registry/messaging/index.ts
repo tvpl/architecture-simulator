@@ -234,9 +234,32 @@ const ses: ServiceDefinition = {
   ],
 };
 
+const eventbridgePipes: ServiceDefinition = {
+  type: "eventbridge-pipes",
+  label: "EventBridge Pipes",
+  description: "Pipes ponto a ponto entre produtores e consumidores de eventos",
+  category: "messaging",
+  iconName: "ArrowLeftRight",
+  color: "text-cyan-600",
+  bgColor: "bg-cyan-50 dark:bg-cyan-950/30",
+  borderColor: "border-cyan-500",
+  allowedIncomingProtocols: ["eventbridge", "https", "sqs", "kinesis"],
+  allowedOutgoingProtocols: ["eventbridge", "https", "sqs", "sns"],
+  configSections: [
+    {
+      title: "Pipe",
+      fields: [
+        { kind: "number", key: "eventsPerMonth", label: "Eventos/mês", min: 0, max: 1_000_000_000, step: 100_000 },
+        { kind: "number", key: "filterRatio", label: "Taxa de filtragem (0.1–1.0)", min: 0.1, max: 1.0, step: 0.1 },
+      ],
+    },
+  ],
+};
+
 registry.register(sqs);
 registry.register(sns);
 registry.register(eventbridge);
 registry.register(msk);
 registry.register(kinesis);
 registry.register(ses);
+registry.register(eventbridgePipes);

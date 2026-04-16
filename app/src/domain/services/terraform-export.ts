@@ -25,12 +25,23 @@ function generateResource(node: ArchitectureNode): string {
   switch (node.type) {
     case "lambda":
       return `resource "aws_lambda_function" "${name}" {
-  function_name = "${name}"
+  function_name = "\${local.project}-${name}"
   runtime       = "nodejs20.x"
   handler       = "index.handler"
   role          = "arn:aws:iam::ACCOUNT_ID:role/lambda-role"
   memory_size   = ${(c.memoryMB as number) ?? 128}
   timeout       = ${(c.timeoutSec as number) ?? 3}
+
+  environment {
+    variables = {
+      PROJECT = var.project_name
+    }
+  }
+
+  tags = {
+    Name    = "\${local.project}-${name}"
+    Project = var.project_name
+  }
 }`;
 
     case "ec2":
@@ -40,7 +51,8 @@ function generateResource(node: ArchitectureNode): string {
   count         = ${(c.count as number) ?? 1}
 
   tags = {
-    Name = "${name}"
+    Name    = "\${local.project}-${name}"
+    Project = var.project_name
   }
 }`;
 
@@ -52,21 +64,39 @@ function generateResource(node: ArchitectureNode): string {
   multi_az          = ${(c.multiAZ as boolean) ?? false}
   username          = "admin"
   password          = "CHANGE_ME"
-  skip_final_snapshot = true
-}`;
-
-    case "s3":
-      return `resource "aws_s3_bucket" "${name}" {
-  bucket = "${name.replace(/_/g, "-")}"
+  skip_final_snapshot       = false
+  final_snapshot_identifier = "\${local.project}-final-snapshot"
 
   tags = {
-    Name = "${name}"
+    Name    = "\${local.project}-${name}"
+    Project = var.project_name
   }
 }`;
 
+    case "s3": {
+      const bucketName = name.replace(/_/g, "-");
+      return `resource "aws_s3_bucket" "${name}" {
+  bucket        = "\${local.project}-${bucketName}"
+  force_destroy = false
+
+  tags = {
+    Name    = "\${local.project}-${bucketName}"
+    Project = var.project_name
+  }
+}
+
+resource "aws_s3_bucket_versioning" "${name}_versioning" {
+  bucket = aws_s3_bucket.${name}.id
+
+  versioning_configuration {
+    status = "Enabled"
+  }
+}`;
+    }
+
     case "dynamodb":
       return `resource "aws_dynamodb_table" "${name}" {
-  name         = "${name}"
+  name         = "\${local.project}-${name}"
   billing_mode = "${(c.capacityMode as string) === "on-demand" ? "PAY_PER_REQUEST" : "PROVISIONED"}"
   hash_key     = "id"
 
@@ -81,25 +111,41 @@ ${
     : ""
 }
   tags = {
-    Name = "${name}"
+    Name    = "\${local.project}-${name}"
+    Project = var.project_name
   }
 }`;
 
     case "sqs":
       return `resource "aws_sqs_queue" "${name}" {
-  name = "${name}"
+  name = "\${local.project}-${name}"
+
+  tags = {
+    Name    = "\${local.project}-${name}"
+    Project = var.project_name
+  }
 }`;
 
     case "sns":
       return `resource "aws_sns_topic" "${name}" {
-  name = "${name}"
+  name = "\${local.project}-${name}"
+
+  tags = {
+    Name    = "\${local.project}-${name}"
+    Project = var.project_name
+  }
 }`;
 
     case "alb":
       return `resource "aws_lb" "${name}" {
-  name               = "${name.replace(/_/g, "-")}"
+  name               = "\${local.project}-${name.replace(/_/g, "-")}"
   load_balancer_type = "application"
   internal           = false
+
+  tags = {
+    Name    = "\${local.project}-${name}"
+    Project = var.project_name
+  }
 }`;
 
     case "cloudfront":
@@ -108,11 +154,11 @@ ${
 
   origin {
     domain_name = "REPLACE_WITH_ORIGIN"
-    origin_id   = "${name}-origin"
+    origin_id   = "\${local.project}-${name}-origin"
   }
 
   default_cache_behavior {
-    target_origin_id       = "${name}-origin"
+    target_origin_id       = "\${local.project}-${name}-origin"
     viewer_protocol_policy = "redirect-to-https"
     allowed_methods        = ["GET", "HEAD"]
     cached_methods         = ["GET", "HEAD"]
@@ -130,6 +176,11 @@ ${
   viewer_certificate {
     cloudfront_default_certificate = true
   }
+
+  tags = {
+    Name    = "\${local.project}-${name}"
+    Project = var.project_name
+  }
 }`;
 
     case "vpc":
@@ -138,7 +189,8 @@ ${
   enable_dns_hostnames = ${(c.enableDnsHostnames as boolean) ?? true}
 
   tags = {
-    Name = "${name}"
+    Name    = "\${local.project}-${name}"
+    Project = var.project_name
   }
 }`;
 
@@ -148,56 +200,140 @@ ${
   map_public_ip_on_launch = ${(c.isPublic as boolean) ?? false}
 
   tags = {
-    Name = "${name}"
+    Name    = "\${local.project}-${name}"
+    Project = var.project_name
   }
 }`;
 
     case "api-gateway":
       return `resource "aws_api_gateway_rest_api" "${name}" {
-  name = "${name}"
+  name = "\${local.project}-${name}"
 
   endpoint_configuration {
     types = ["REGIONAL"]
+  }
+
+  tags = {
+    Name    = "\${local.project}-${name}"
+    Project = var.project_name
   }
 }`;
 
     case "elasticache":
       return `resource "aws_elasticache_cluster" "${name}" {
-  cluster_id      = "${name.replace(/_/g, "-")}"
+  cluster_id      = "\${local.project}-${name.replace(/_/g, "-")}"
   engine          = "${(c.engine as string) ?? "redis"}"
   node_type       = "${(c.nodeType as string) ?? "cache.t3.micro"}"
   num_cache_nodes = ${(c.nodeCount as number) ?? 1}
+
+  tags = {
+    Name    = "\${local.project}-${name}"
+    Project = var.project_name
+  }
 }`;
 
     case "eks":
       return `resource "aws_eks_cluster" "${name}" {
-  name     = "${name}"
+  name     = "\${local.project}-${name}"
   role_arn = "arn:aws:iam::ACCOUNT_ID:role/eks-cluster-role"
 
   vpc_config {
     subnet_ids = ["REPLACE_WITH_SUBNET_IDS"]
   }
+
+  tags = {
+    Name    = "\${local.project}-${name}"
+    Project = var.project_name
+  }
 }`;
 
     case "ecs":
       return `resource "aws_ecs_cluster" "${name}" {
-  name = "${name}"
+  name = "\${local.project}-${name}"
 
   setting {
     name  = "containerInsights"
     value = "enabled"
   }
+
+  tags = {
+    Name    = "\${local.project}-${name}"
+    Project = var.project_name
+  }
 }`;
 
     case "kinesis":
       return `resource "aws_kinesis_stream" "${name}" {
-  name        = "${name}"
+  name        = "\${local.project}-${name}"
   shard_count = ${(c.shardCount as number) ?? 1}
+
+  tags = {
+    Name    = "\${local.project}-${name}"
+    Project = var.project_name
+  }
 }`;
 
     default:
       return `# TODO: add resource for ${node.type} ("${node.label}")`;
   }
+}
+
+function generateOutputs(nodes: ArchitectureNode[]): string {
+  const blocks: string[] = [];
+
+  for (const node of nodes) {
+    if (node.type === "note") continue;
+    const name = toTfName(node.label) || `resource_${node.id.slice(0, 8)}`;
+
+    switch (node.type) {
+      case "lambda":
+        blocks.push(`output "${name}_arn" {
+  description = "ARN of Lambda function ${node.label}"
+  value       = aws_lambda_function.${name}.arn
+}
+
+output "${name}_invoke_arn" {
+  description = "Invoke ARN of Lambda function ${node.label}"
+  value       = aws_lambda_function.${name}.invoke_arn
+}`);
+        break;
+
+      case "rds":
+        blocks.push(`output "${name}_endpoint" {
+  description = "Endpoint of RDS instance ${node.label}"
+  value       = aws_db_instance.${name}.endpoint
+}`);
+        break;
+
+      case "s3":
+        blocks.push(`output "${name}_bucket_name" {
+  description = "Name of S3 bucket ${node.label}"
+  value       = aws_s3_bucket.${name}.id
+}
+
+output "${name}_bucket_arn" {
+  description = "ARN of S3 bucket ${node.label}"
+  value       = aws_s3_bucket.${name}.arn
+}`);
+        break;
+
+      case "alb":
+        blocks.push(`output "${name}_dns_name" {
+  description = "DNS name of ALB ${node.label}"
+  value       = aws_lb.${name}.dns_name
+}`);
+        break;
+
+      case "api-gateway":
+        blocks.push(`output "${name}_execution_arn" {
+  description = "Execution ARN of API Gateway ${node.label}"
+  value       = aws_api_gateway_rest_api.${name}.execution_arn
+}`);
+        break;
+    }
+  }
+
+  return blocks.join("\n\n");
 }
 
 export function generateTerraformTemplate(
@@ -213,6 +349,7 @@ export function generateTerraformTemplate(
 # ─────────────────────────────────────────────────────────────────────────────
 
 terraform {
+  required_version = ">= 1.5.0"
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -222,7 +359,7 @@ terraform {
 }
 
 provider "aws" {
-  region = "us-east-1"
+  region = var.aws_region
 
   default_tags {
     tags = {
@@ -232,12 +369,33 @@ provider "aws" {
   }
 }
 
+variable "aws_region" {
+  description = "AWS region"
+  type        = string
+  default     = "us-east-1"
+}
+
+variable "project_name" {
+  description = "Project name prefix for resources"
+  type        = string
+  default     = "${sanitizedProject}"
+}
+
+locals {
+  project = var.project_name
+}
+
 `;
 
-  const resourceBlocks = nodes
-    .filter((n) => n.type !== "note")
-    .map((n) => generateResource(n))
-    .join("\n\n");
+  const filteredNodes = nodes.filter((n) => n.type !== "note");
+  const resourceBlocks = filteredNodes.map((n) => generateResource(n)).join("\n\n");
 
-  return header + (resourceBlocks || "# No resources defined\n");
+  const outputBlocks = generateOutputs(filteredNodes);
+
+  const body = resourceBlocks || "# No resources defined\n";
+  const outputs = outputBlocks
+    ? `\n\n# ─── Outputs ────────────────────────────────────────────────────────────────\n\n${outputBlocks}\n`
+    : "";
+
+  return header + body + outputs;
 }

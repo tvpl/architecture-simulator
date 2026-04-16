@@ -31,6 +31,8 @@ import {
   FileImage,
   Award,
   BookMarked,
+  Share2,
+  GitCompare,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -76,6 +78,8 @@ export function Navbar() {
     toggleWellArchitectedPanel,
     openTemplatesDialog,
     openShortcutsModal,
+    comparisonModeActive,
+    toggleComparisonMode,
   } = useUIStore();
   const { theme, toggleTheme } = useThemeStore();
   const { toggleHistoryPanel } = useHistoryStore();
@@ -432,6 +436,39 @@ export function Navbar() {
               )}
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {/* ── Share button ─────────────────────────────────────────────── */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                variant="outline"
+                className="h-8 w-8"
+                onClick={handleShare}
+              >
+                <Share2 className="w-3.5 h-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Compartilhar diagrama</TooltipContent>
+          </Tooltip>
+
+          {/* ── Comparison mode toggle ────────────────────────────────────── */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                variant="outline"
+                className={cn(
+                  "h-8 w-8",
+                  comparisonModeActive && "text-primary border-primary/40 bg-primary/5"
+                )}
+                onClick={toggleComparisonMode}
+              >
+                <GitCompare className="w-3.5 h-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Comparação</TooltipContent>
+          </Tooltip>
 
           {/* ── View dropdown ────────────────────────────────────────────── */}
           <DropdownMenu>

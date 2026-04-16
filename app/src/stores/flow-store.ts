@@ -104,6 +104,9 @@ interface FlowState {
   removeEdge: (edgeId: string) => void;
   removeSolutionEdge: (edgeId: string) => void;
 
+  // Selection helpers
+  selectAllNodes: () => void;
+
   // Project
   setProjectName: (name: string) => void;
   exportProject: () => ProjectData;
@@ -432,6 +435,14 @@ export const useFlowStore = create<FlowState>()(
     removeSolutionEdge: (edgeId) => {
       set((state) => ({
         solutionEdges: state.solutionEdges.filter((e) => e.id !== edgeId),
+      }));
+    },
+
+    // ── Selection helpers ────────────────────────────────────────────────────
+
+    selectAllNodes: () => {
+      set((state) => ({
+        nodes: state.nodes.map((n) => ({ ...n, selected: true })),
       }));
     },
 

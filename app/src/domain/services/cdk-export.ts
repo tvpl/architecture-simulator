@@ -28,7 +28,7 @@ function cfg(node: ArchitectureNode): Record<string, unknown> {
   return node.config as unknown as Record<string, unknown>;
 }
 
-function generateConstruct(node: ArchitectureNode): string {
+function generateConstruct(node: ArchitectureNode, stackName: string): string {
   const id = toId(node.label) || `Resource${node.id.slice(0, 8)}`;
   const c = cfg(node);
 
@@ -40,13 +40,16 @@ function generateConstruct(node: ArchitectureNode): string {
       handler: 'index.handler',
       code: lambda.Code.fromInline('exports.handler = async () => ({ statusCode: 200 });'),
       memorySize: ${(c.memoryMB as number) ?? 128},
-      timeout: cdk.Duration.seconds(${(c.timeoutSec as number) ?? 3}),
+      timeout: cdk.Duration.seconds(${(c.timeoutSec as number) ?? 30}),
+      environment: {
+        PROJECT: ${stackName},
+      },
     });`;
 
     case "s3":
       return `    const ${id} = new s3.Bucket(this, '${id}', {
-      versioned: false,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      versioned: true,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
     });`;
 
     case "rds":
@@ -56,9 +59,9 @@ function generateConstruct(node: ArchitectureNode): string {
       }),
       instanceType: ec2.InstanceType.of(ec2.InstanceClass.T3, ec2.InstanceSize.MICRO),
       allocatedStorage: ${(c.storageGB as number) ?? 20},
-      multiAz: ${(c.multiAZ as boolean) ?? false},
+      multiAz: false,
       deletionProtection: false,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      removalPolicy: cdk.RemovalPolicy.SNAPSHOT,
     });`;
 
     case "dynamodb":
@@ -70,7 +73,7 @@ function generateConstruct(node: ArchitectureNode): string {
           ? "dynamodb.BillingMode.PAY_PER_REQUEST"
           : `dynamodb.BillingMode.PROVISIONED,\n      readCapacity: ${(c.readCapacityUnits as number) ?? 5},\n      writeCapacity: ${(c.writeCapacityUnits as number) ?? 5}`
       },
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
     });`;
 
     case "sqs":
@@ -109,12 +112,12 @@ function generateConstruct(node: ArchitectureNode): string {
     });`;
 
     case "elasticache":
-      return `    // TODO: ElastiCache via low-level CfnCacheCluster (no high-level L2 construct available)
-    // const ${id} = new elasticache.CfnCacheCluster(this, '${id}', {
-    //   engine: '${(c.engine as string) ?? "redis"}',
-    //   cacheNodeType: '${(c.nodeType as string) ?? "cache.t3.micro"}',
-    //   numCacheNodes: ${(c.nodeCount as number) ?? 1},
-    // });`;
+      return `    // ElastiCache via low-level CfnCacheCluster (no high-level L2 construct available)
+    const ${id} = new elasticache.CfnCacheCluster(this, '${id}', {
+      engine: '${(c.engine as string) ?? "redis"}',
+      cacheNodeType: '${(c.nodeType as string) ?? "cache.t3.micro"}',
+      numCacheNodes: ${(c.nodeCount as number) ?? 1},
+    });`;
 
     case "kinesis":
       return `    const ${id} = new kinesis.Stream(this, '${id}', {
@@ -133,7 +136,6 @@ function generateConstruct(node: ArchitectureNode): string {
     //   defaultBehavior: { origin: new origins.HttpOrigin('REPLACE_WITH_ORIGIN') },
     // });`;
 
-    case "rds":
     default:
       return `    // TODO: ${node.type} — "${node.label}" (no CDK construct mapped)`;
   }
@@ -178,6 +180,9 @@ function collectImports(nodes: ArchitectureNode[]): string[] {
       case "eks":
         imports.add("import * as eks from 'aws-cdk-lib/aws-eks';");
         break;
+      case "elasticache":
+        imports.add("import * as elasticache from 'aws-cdk-lib/aws-elasticache';");
+        break;
       case "kinesis":
         imports.add("import * as kinesis from 'aws-cdk-lib/aws-kinesis';");
         break;
@@ -202,9 +207,17 @@ export function generateCDKApp(
   const filteredNodes = nodes.filter((n) => n.type !== "note");
 
   const imports = collectImports(filteredNodes);
-  const constructs = filteredNodes.map(generateConstruct).join("\n\n");
+  const constructs = filteredNodes.map((n) => generateConstruct(n, "this.stackName")).join("\n\n");
 
-  return `// ─── AWS CDK TypeScript App ───────────────────────────────────────────────────
+  return `// cdk.json (create this file alongside the stack):
+// {
+//   "app": "npx ts-node --prefer-ts-exts bin/app.ts",
+//   "context": { "@aws-cdk/aws-apigateway:usagePlanKeyOrderInsensitiveId": true }
+// }
+//
+// Install: npm install aws-cdk-lib constructs
+
+// ─── AWS CDK TypeScript App ───────────────────────────────────────────────────
 // Project : ${projectName}
 // Generated: ${new Date().toISOString()}
 // ─────────────────────────────────────────────────────────────────────────────
@@ -226,7 +239,7 @@ ${constructs || "    // No resources defined"}
 }
 
 const app = new cdk.App();
-new ${stackClassName}(app, '${stackClassName}', {
+new ${stackClassName}(app, '${projectName}', {
   env: {
     account: process.env.CDK_DEFAULT_ACCOUNT,
     region: process.env.CDK_DEFAULT_REGION ?? 'us-east-1',

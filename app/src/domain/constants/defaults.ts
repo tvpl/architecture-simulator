@@ -204,6 +204,21 @@ export const SERVICE_DEFAULTS: ServiceConfigMap = {
     storageGB: 50,
     endpointEnabled: true,
   },
+  bedrock: {
+    modelId: "anthropic.claude-3-sonnet",
+    requestsPerMonth: 10000,
+    inputTokensPerRequest: 1000,
+    outputTokensPerRequest: 500,
+  },
+  "sfn-express": {
+    executionsPerMonth: 100000,
+    avgDurationSec: 5,
+    memoryMB: 64,
+  },
+  "eventbridge-pipes": {
+    eventsPerMonth: 1000000,
+    filterRatio: 1.0,
+  },
   note: {
     content: "Adicione uma anotação aqui...",
     color: "yellow",

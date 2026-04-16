@@ -519,6 +519,12 @@ export function generateCloudFormationTemplate(
         generated = { [id]: { Type: "AWS::OpenSearchService::Domain", Properties: { DomainName: { "Fn::Sub": `\${Environment}-${node.label.toLowerCase().replace(/\s+/g, "-")}` }, ClusterConfig: { InstanceType: cfg.instanceType, InstanceCount: cfg.instanceCount, DedicatedMasterEnabled: cfg.dedicatedMaster }, EBSOptions: { EBSEnabled: true, VolumeSize: cfg.storageGB, VolumeType: "gp3" }, Tags: [{ Key: "Environment", Value: { Ref: "Environment" } }] } } };
         break;
       }
+      case "bedrock":
+      case "sfn-express":
+      case "eventbridge-pipes":
+        // Canvas-only annotations — no direct 1:1 CloudFormation resource
+        generated = {};
+        break;
       case "note":
       case "region":
         // Annotations are canvas-only, not CloudFormation resources
