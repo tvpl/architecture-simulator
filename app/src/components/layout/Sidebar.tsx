@@ -3,8 +3,14 @@
  * Sidebar — layer-aware component palette.
  * Shows infrastructure services (L1) or app components (L2) based on active layer.
  * Premium design: colored accent strips, category count badges, improved hover states.
+ *
+ * Features:
+ * - Click-to-add services (L1 and L2) with "+" button on hover
+ * - Category expansion persisted in useUIStore
+ * - Resizable sidebar via drag handle on right edge
+ * - "Adicionar via Command Palette" button when search has no results
  */
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
@@ -12,8 +18,8 @@ import {
   ChevronRight,
   ChevronDown,
   ChevronRight as ChevronRightSmall,
-  Server,
   AlertTriangle,
+  Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { registry } from "@/registry";
@@ -27,7 +33,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useUIStore } from "@/stores/ui-store";
 import { useLayerStore } from "@/stores/layer-store";
 import { useFlowStore, selectInfraHostOptions } from "@/stores/flow-store";
+import { useCommandPaletteStore } from "@/stores/command-palette-store";
 import { ServiceIcon } from "@/components/nodes/base/ServiceIcon";
+import { toast } from "sonner";
+import type { ServicePaletteEntry } from "@/registry/types";
+import type { AppPaletteEntry } from "@/registry/app-components/types";
 
 // Converts "border-orange-500" → a matching bg color for the left accent strip
 function borderToStripBg(borderColor: string): string {
@@ -44,12 +54,48 @@ function textToCategoryBadge(textColor: string): string {
 }
 
 export function Sidebar() {
-  const { sidebarCollapsed, toggleSidebar } = useUIStore();
+  const {
+    sidebarCollapsed,
+    toggleSidebar,
+    sidebarWidth,
+    setSidebarWidth,
+    expandedCategories,
+    toggleExpandedCategory,
+  } = useUIStore();
   const activeLayer = useLayerStore((s) => s.activeLayer);
   const [search, setSearch] = useState("");
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
-    new Set(["compute", "networking", "messaging", "application", "messaging-app"])
+
+  // ── Resizable sidebar ────────────────────────────────────────────────────────
+  const isResizing = useRef(false);
+
+  const handleResizeMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      isResizing.current = true;
+
+      const handleMouseMove = (ev: MouseEvent) => {
+        if (!isResizing.current) return;
+        setSidebarWidth(ev.clientX);
+      };
+
+      const handleMouseUp = () => {
+        isResizing.current = false;
+        window.removeEventListener("mousemove", handleMouseMove);
+        window.removeEventListener("mouseup", handleMouseUp);
+      };
+
+      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("mouseup", handleMouseUp);
+    },
+    [setSidebarWidth]
   );
+
+  // Clean up listeners on unmount (safety net)
+  useEffect(() => {
+    return () => {
+      isResizing.current = false;
+    };
+  }, []);
 
   const isInfraLayer = activeLayer === "architecture";
 
@@ -86,25 +132,54 @@ export function Sidebar() {
     : palette;
 
   const toggleCategory = (id: string) => {
-    setExpandedCategories((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+    toggleExpandedCategory(id);
   };
 
   const totalCount = isInfraLayer
     ? registry.getAll().length
     : appComponentRegistry.getAll().length;
 
+  // ── Click-to-add handler for L1 ─────────────────────────────────────────────
+  const handleAddInfraService = useCallback((type: AWSServiceType) => {
+    useFlowStore.getState().addNode(type, {
+      x: Math.random() * 400 + 100,
+      y: Math.random() * 300 + 100,
+    });
+  }, []);
+
+  // ── Click-to-add handler for L2 ─────────────────────────────────────────────
+  const handleAddAppComponent = useCallback((type: AppComponentType) => {
+    const infraHosts = selectInfraHostOptions(useFlowStore.getState());
+    if (infraHosts.length === 0) {
+      toast.warning("Nenhuma infraestrutura disponível. Adicione serviços na aba L1 Arquitetura primeiro.");
+      return;
+    }
+    const defaultHost = infraHosts[0];
+    useFlowStore.getState().addAppComponent(type, {
+      x: Math.random() * 400 + 100,
+      y: Math.random() * 300 + 100,
+    }, defaultHost.id);
+  }, []);
+
+  const handleAdd = useCallback(
+    (type: AWSServiceType | AppComponentType) => {
+      if (isInfraLayer) {
+        handleAddInfraService(type as AWSServiceType);
+      } else {
+        handleAddAppComponent(type as AppComponentType);
+      }
+    },
+    [isInfraLayer, handleAddInfraService, handleAddAppComponent]
+  );
+
   return (
     <TooltipProvider delayDuration={300}>
       <div
         className={cn(
           "relative flex flex-col bg-background border-r border-border transition-all duration-300",
-          sidebarCollapsed ? "w-14" : "w-72"
+          sidebarCollapsed ? "w-14" : ""
         )}
+        style={sidebarCollapsed ? undefined : { width: sidebarWidth }}
       >
         {/* Header */}
         <div
@@ -154,7 +229,7 @@ export function Sidebar() {
         <ScrollArea className="flex-1">
           <div className="py-2 px-2">
             {filteredPalette.map((category, idx) => {
-              const isExpanded = sidebarCollapsed || expandedCategories.has(category.id);
+              const isExpanded = sidebarCollapsed || expandedCategories.includes(category.id);
               // Pick a representative color from first service for category badge
               const firstService = category.services[0];
               const categoryBadgeBg = firstService ? textToCategoryBadge(firstService.color) : "bg-muted";
@@ -197,7 +272,7 @@ export function Sidebar() {
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: "auto", opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
+                        transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] as [number, number, number, number] }}
                         className="overflow-hidden"
                       >
                         <div className={cn("space-y-0.5", !sidebarCollapsed && "mt-0.5 pb-0.5")}>
@@ -207,6 +282,7 @@ export function Sidebar() {
                               service={service}
                               collapsed={sidebarCollapsed}
                               onDragStart={handleDragStart}
+                              onAdd={handleAdd}
                             />
                           ))}
                         </div>
@@ -222,10 +298,27 @@ export function Sidebar() {
                 <Search className="w-8 h-8 text-muted-foreground/30 mb-2" />
                 <p className="text-xs text-muted-foreground">Nenhum resultado para</p>
                 <p className="text-xs font-medium text-foreground mt-0.5">{'"'}{search}{'"'}</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-3 h-7 text-xs gap-1.5"
+                  onClick={() => useCommandPaletteStore.getState().open()}
+                >
+                  <Plus className="w-3 h-3" />
+                  Adicionar via Command Palette
+                </Button>
               </div>
             )}
           </div>
         </ScrollArea>
+
+        {/* Drag handle — right edge resize (only when not collapsed) */}
+        {!sidebarCollapsed && (
+          <div
+            className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/60 transition-colors z-10"
+            onMouseDown={handleResizeMouseDown}
+          />
+        )}
       </div>
     </TooltipProvider>
   );
@@ -277,21 +370,16 @@ function InfrastructureContext() {
 
 // ── ServiceCard ───────────────────────────────────────────────────────────────
 
+type ServiceOrAppEntry = (ServicePaletteEntry & { borderColor?: string }) | (AppPaletteEntry & { borderColor?: string });
+
 interface ServiceCardProps {
-  service: {
-    type: AWSServiceType | AppComponentType;
-    label: string;
-    description: string;
-    iconName: string;
-    color: string;
-    bgColor: string;
-    borderColor?: string;
-  };
+  service: ServiceOrAppEntry;
   collapsed: boolean;
   onDragStart: (e: React.DragEvent, type: string) => void;
+  onAdd: (type: AWSServiceType | AppComponentType) => void;
 }
 
-function ServiceCard({ service, collapsed, onDragStart }: ServiceCardProps) {
+function ServiceCard({ service, collapsed, onDragStart, onAdd }: ServiceCardProps) {
   const accentBg = service.borderColor
     ? borderToStripBg(service.borderColor)
     : service.color.replace("text-", "bg-");
@@ -300,8 +388,9 @@ function ServiceCard({ service, collapsed, onDragStart }: ServiceCardProps) {
     <div
       draggable
       onDragStart={(e) => onDragStart(e, service.type)}
+      onClick={() => onAdd(service.type)}
       className={cn(
-        "relative flex items-center gap-2.5 rounded-lg overflow-hidden select-none",
+        "group relative flex items-center gap-2.5 rounded-lg overflow-hidden select-none",
         "border border-transparent cursor-grab active:cursor-grabbing",
         "hover:border-border hover:bg-muted/40 hover:shadow-sm transition-all",
         collapsed ? "p-2 justify-center" : "px-2 py-2"
@@ -327,6 +416,25 @@ function ServiceCard({ service, collapsed, onDragStart }: ServiceCardProps) {
             {service.description}
           </div>
         </div>
+      )}
+
+      {/* "+" button — appears on hover, only when expanded */}
+      {!collapsed && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onAdd(service.type);
+          }}
+          className={cn(
+            "shrink-0 opacity-0 group-hover:opacity-100 transition-opacity",
+            "w-5 h-5 flex items-center justify-center rounded",
+            "bg-primary/10 hover:bg-primary/20 text-primary"
+          )}
+          aria-label={`Adicionar ${service.label}`}
+        >
+          <Plus className="w-3 h-3" />
+        </button>
       )}
     </div>
   );

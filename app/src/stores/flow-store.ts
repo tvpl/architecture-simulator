@@ -240,7 +240,7 @@ export const useFlowStore = create<FlowState>()(
         type: "service-node",
         position,
         data: domainNode,
-        ...(["vpc", "subnet", "security-group"].includes(type)
+        ...(["vpc", "subnet", "security-group", "region"].includes(type)
           ? { type: "container-node" }
           : {}),
       };

@@ -113,6 +113,8 @@ export function calculateMaxThroughput(node: ArchitectureNode): number {
 
     case "note":
       return 0;
+    case "region":
+      return Infinity;
 
     default:
       return 10_000;

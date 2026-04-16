@@ -38,7 +38,7 @@ const ts = () => new Date().toISOString();
 function node(id: string, type: string, label: string, x: number, y: number, config?: Record<string, unknown>): FlowNode {
   return {
     id,
-    type: type === "vpc" || type === "subnet" ? "container-node" : "service-node",
+    type: type === "vpc" || type === "subnet" || type === "region" ? "container-node" : "service-node",
     position: { x, y },
     data: {
       id,

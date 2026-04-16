@@ -51,6 +51,7 @@ const BASE_LATENCY_MS: Record<AWSServiceType, number> = {
   glue: 0,
   sagemaker: 200,
   note: 0,
+  region: 0,
 };
 
 export function getBaseLatency(type: AWSServiceType): number {

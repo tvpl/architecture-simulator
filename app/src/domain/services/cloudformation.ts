@@ -520,6 +520,7 @@ export function generateCloudFormationTemplate(
         break;
       }
       case "note":
+      case "region":
         // Annotations are canvas-only, not CloudFormation resources
         generated = {};
         break;

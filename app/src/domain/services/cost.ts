@@ -161,6 +161,8 @@ export function calculateServiceCost(
     }
     case "note":
       return { monthlyCostUSD: 0, details: "Anotação (sem custo)", lineItems: [] };
+    case "region":
+      return { monthlyCostUSD: 0, details: "Container sem custo", lineItems: [] };
     default:
       return { monthlyCostUSD: 0, details: "Free or not priced", lineItems: [] };
   }

@@ -26,6 +26,11 @@ import {
   PanelRight,
   Eye,
   Command,
+  Code2,
+  HelpCircle,
+  FileImage,
+  Award,
+  BookMarked,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -67,7 +72,10 @@ export function Navbar() {
     validationPanelOpen,
     toggleWhatIfPanel,
     whatIfPanelOpen,
+    wellArchitectedPanelOpen,
+    toggleWellArchitectedPanel,
     openTemplatesDialog,
+    openShortcutsModal,
   } = useUIStore();
   const { theme, toggleTheme } = useThemeStore();
   const { toggleHistoryPanel } = useHistoryStore();
@@ -168,6 +176,54 @@ export function Navbar() {
       toast.error("Erro ao exportar imagem.");
     }
   }, []);
+
+  const handleExportSvg = useCallback(async () => {
+    try {
+      const { toSvg } = await import("html-to-image");
+      const viewport = document.querySelector<HTMLElement>(".react-flow__viewport");
+      if (!viewport) { toast.error("Nenhum diagrama encontrado."); return; }
+      const dataUrl = await toSvg(viewport);
+      const a = document.createElement("a");
+      a.href = dataUrl;
+      a.download = `arquitetura-${Date.now()}.svg`;
+      a.click();
+      toast.success("SVG exportado.");
+    } catch {
+      toast.error("Erro ao exportar SVG.");
+    }
+  }, []);
+
+  const handleExportTerraform = useCallback(async () => {
+    const domainNodes = selectDomainNodes(useFlowStore.getState());
+    const domainEdges = selectDomainEdges(useFlowStore.getState());
+    if (domainNodes.length === 0) { toast.warning("Adicione componentes primeiro."); return; }
+    const { generateTerraformTemplate } = await import("@/domain/services/terraform-export");
+    const hcl = generateTerraformTemplate(domainNodes, domainEdges, projectName);
+    const blob = new Blob([hcl], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${projectName.replace(/\s+/g, "-").toLowerCase()}.tf`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Terraform exportado!");
+  }, [projectName]);
+
+  const handleExportCDK = useCallback(async () => {
+    const domainNodes = selectDomainNodes(useFlowStore.getState());
+    const domainEdges = selectDomainEdges(useFlowStore.getState());
+    if (domainNodes.length === 0) { toast.warning("Adicione componentes primeiro."); return; }
+    const { generateCDKApp } = await import("@/domain/services/cdk-export");
+    const ts = generateCDKApp(domainNodes, domainEdges, projectName);
+    const blob = new Blob([ts], { type: "text/typescript" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${projectName.replace(/\s+/g, "-").toLowerCase()}-cdk.ts`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("AWS CDK exportado!");
+  }, [projectName]);
 
   const handleClear = useCallback(() => {
     if (confirm("Limpar canvas? Esta ação não pode ser desfeita.")) {
@@ -326,6 +382,10 @@ export function Navbar() {
                 Copiar link
                 <DropdownMenuShortcut>URL</DropdownMenuShortcut>
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => window.dispatchEvent(new Event("open-save-template"))}>
+                <BookMarked className="w-3.5 h-3.5 text-muted-foreground" />
+                Salvar como Template
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuLabel>Projeto</DropdownMenuLabel>
               <DropdownMenuItem onClick={handleExportJson}>
@@ -344,9 +404,24 @@ export function Navbar() {
                 Imagem PNG
                 <DropdownMenuShortcut>2×</DropdownMenuShortcut>
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportSvg}>
+                <FileImage className="w-3.5 h-3.5 text-muted-foreground" />
+                Imagem SVG
+                <DropdownMenuShortcut>SVG</DropdownMenuShortcut>
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={handleExportCloudFormation} disabled={nodes.length === 0}>
                 <FileCode2 className="w-3.5 h-3.5 text-muted-foreground" />
                 CloudFormation
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportTerraform} disabled={nodes.length === 0}>
+                <Code2 className="w-3.5 h-3.5 text-muted-foreground" />
+                Terraform HCL
+                <DropdownMenuShortcut>.tf</DropdownMenuShortcut>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportCDK} disabled={nodes.length === 0}>
+                <Code2 className="w-3.5 h-3.5 text-muted-foreground" />
+                AWS CDK (TypeScript)
+                <DropdownMenuShortcut>.ts</DropdownMenuShortcut>
               </DropdownMenuItem>
               {solutionNodes.length > 0 && (
                 <DropdownMenuItem onClick={handleExportK8s}>
@@ -430,6 +505,10 @@ export function Navbar() {
                 <Calculator className="w-3.5 h-3.5 text-muted-foreground mr-2" />
                 What-if
               </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem checked={wellArchitectedPanelOpen} onCheckedChange={toggleWellArchitectedPanel}>
+                <Award className="w-3.5 h-3.5 text-muted-foreground mr-2" />
+                Well-Architected
+              </DropdownMenuCheckboxItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem variant="destructive" onClick={handleClear}>
                 <RotateCcw className="w-3.5 h-3.5" />
@@ -484,6 +563,16 @@ export function Navbar() {
           </Tooltip>
 
           <div className="h-5 w-px bg-border mx-0.5" />
+
+          {/* Keyboard shortcuts help */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={openShortcutsModal}>
+                <HelpCircle className="w-4 h-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Atalhos de teclado (?)</TooltipContent>
+          </Tooltip>
 
           {/* Theme toggle */}
           <motion.div whileTap={{ rotate: 20 }} transition={{ duration: 0.15 }}>

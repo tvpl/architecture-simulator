@@ -49,6 +49,7 @@ export const AWS_SERVICE_TYPES = [
   "sagemaker",
   // Annotations
   "note",
+  "region",
 ] as const;
 
 export type AWSServiceType = (typeof AWS_SERVICE_TYPES)[number];
@@ -311,6 +312,11 @@ export interface NoteConfig {
   color: "yellow" | "blue" | "green" | "pink" | "purple";
 }
 
+export interface RegionConfig {
+  regionCode: string; // e.g. "us-east-1"
+  regionName: string; // e.g. "US East (N. Virginia)"
+}
+
 // ─── Service Config Map ──────────────────────────────────────────────────────
 
 export interface ServiceConfigMap {
@@ -354,6 +360,7 @@ export interface ServiceConfigMap {
   glue: GlueConfig;
   sagemaker: SageMakerConfig;
   note: NoteConfig;
+  region: RegionConfig;
 }
 
 // ─── Architecture Node ───────────────────────────────────────────────────────
@@ -377,7 +384,7 @@ export type ArchitectureNode<T extends AWSServiceType = AWSServiceType> =
 
 // ─── Container node types (can hold children) ───────────────────────────────
 
-export const CONTAINER_NODE_TYPES: AWSServiceType[] = ["vpc", "subnet"];
+export const CONTAINER_NODE_TYPES: AWSServiceType[] = ["vpc", "subnet", "region"];
 
 export function isContainerNode(type: AWSServiceType): boolean {
   return CONTAINER_NODE_TYPES.includes(type);
@@ -426,4 +433,5 @@ export const SERVICE_CATEGORY_MAP: Record<AWSServiceType, NodeCategory> = {
   glue: "analytics",
   sagemaker: "analytics",
   note: "annotations",
+  region: "annotations",
 };

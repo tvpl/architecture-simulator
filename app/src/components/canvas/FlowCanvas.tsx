@@ -342,6 +342,7 @@ export function FlowCanvas() {
       xray: "#0891b2", redshift: "#7c3aed", athena: "#0d9488", opensearch: "#2563eb",
       glue: "#d97706", sagemaker: "#16a34a",
       note: "#eab308",
+      region: "#4f46e5",
       // L2 app component colors
       microservice: "#6366f1", worker: "#8b5cf6", consumer: "#f59e0b",
       producer: "#f97316", api: "#3b82f6", sidecar: "#14b8a6",

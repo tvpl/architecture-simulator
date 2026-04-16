@@ -2,7 +2,7 @@
  * Default configuration values for each AWS service.
  * Used when dropping a new node onto the canvas.
  */
-import type { ServiceConfigMap } from "../entities/node";
+import type { ServiceConfigMap, RegionConfig } from "../entities/node";
 
 export const SERVICE_DEFAULTS: ServiceConfigMap = {
   ec2: {
@@ -208,4 +208,5 @@ export const SERVICE_DEFAULTS: ServiceConfigMap = {
     content: "Adicione uma anotação aqui...",
     color: "yellow",
   },
+  region: { regionCode: "us-east-1", regionName: "US East (N. Virginia)" } as RegionConfig,
 };

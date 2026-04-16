@@ -4,7 +4,7 @@
  * Premium card with category accent bar, metric pills, layer overlays.
  * Framer-motion: entrance animation + selection glow pulse.
  */
-import React, { memo } from "react";
+import React, { memo, useMemo } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { motion } from "framer-motion";
 import { AlertTriangle, AlertCircle } from "lucide-react";
@@ -20,6 +20,12 @@ import { calculateMaxThroughput } from "@/domain/services/throughput";
 import { formatThroughput } from "@/lib/formatters";
 import type { FlowNode } from "@/stores/flow-store";
 import { ServiceIcon } from "./ServiceIcon";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 function borderToAccentBg(borderColor: string): string {
   return borderColor
@@ -32,15 +38,37 @@ function borderToAccentBg(borderColor: string): string {
 const ServiceNode = memo(function ServiceNode({ data, selected }: NodeProps<FlowNode>) {
   const activeLayer = useLayerStore((s) => s.activeLayer);
   const selectNode = useSelectionStore((s) => s.selectNode);
-  const hasError = useValidationStore((s) => s.errorNodeIds.includes(data.id));
-  const hasWarning = useValidationStore((s) => s.warningNodeIds.includes(data.id));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const hasError = useValidationStore(
+    useMemo(() => (s: { errorNodeIds: string[] }) => s.errorNodeIds.includes(data.id), [data.id])
+  );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const hasWarning = useValidationStore(
+    useMemo(() => (s: { warningNodeIds: string[] }) => s.warningNodeIds.includes(data.id), [data.id])
+  );
 
   const def = registry.get(data.type);
+
+  const costResult = useMemo(
+    () => calculateServiceCost(data),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [data.config, data.type]
+  );
+
+  const availability = useMemo(
+    () => calculateAvailability(data),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [data.config, data.type]
+  );
+
+  const maxThroughput = useMemo(
+    () => calculateMaxThroughput(data),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [data.config, data.type]
+  );
+
   if (!def) return null;
 
-  const costResult = calculateServiceCost(data);
-  const availability = calculateAvailability(data);
-  const maxThroughput = calculateMaxThroughput(data);
   const accentBg = borderToAccentBg(def.borderColor);
 
   return (
@@ -61,11 +89,19 @@ const ServiceNode = memo(function ServiceNode({ data, selected }: NodeProps<Flow
       )}
       style={{ boxShadow: selected ? "0 0 0 2px var(--ring), 0 4px 24px rgba(0,0,0,0.1)" : undefined }}
     >
-      {/* Top handle */}
+      {/* Top handle — target (incoming) */}
       <Handle
         type="target"
         position={Position.Top}
-        className="!w-3 !h-3 !bg-primary/60 !border-2 !border-background hover:!bg-primary transition-colors"
+        className="!w-3.5 !h-3.5 !bg-primary/60 !border-2 !border-background hover:!bg-primary hover:!shadow-[0_0_6px_2px_hsl(var(--primary)/0.5)] transition-all"
+      />
+
+      {/* Left handle — target (incoming) */}
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="left"
+        className="!w-3.5 !h-3.5 !bg-primary/60 !border-2 !border-background hover:!bg-primary hover:!shadow-[0_0_6px_2px_hsl(var(--primary)/0.5)] transition-all"
       />
 
       {/* Left category accent bar */}
@@ -80,7 +116,14 @@ const ServiceNode = memo(function ServiceNode({ data, selected }: NodeProps<Flow
           </div>
 
           <div className="flex-1 min-w-0">
-            <div className="text-xs font-semibold text-foreground truncate leading-tight">{data.label}</div>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="text-xs font-semibold text-foreground truncate leading-tight cursor-default">{data.label}</div>
+                </TooltipTrigger>
+                <TooltipContent side="top">{data.label}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <div className="text-[10px] text-muted-foreground leading-tight mt-0.5">{def.label}</div>
           </div>
 
@@ -170,11 +213,19 @@ const ServiceNode = memo(function ServiceNode({ data, selected }: NodeProps<Flow
         )}
       </div>
 
-      {/* Bottom handle */}
+      {/* Right handle — source (outgoing) */}
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="right"
+        className="!w-3.5 !h-3.5 !bg-primary/60 !border-2 !border-background hover:!bg-primary hover:!shadow-[0_0_6px_2px_hsl(var(--primary)/0.5)] transition-all"
+      />
+
+      {/* Bottom handle — source (outgoing) */}
       <Handle
         type="source"
         position={Position.Bottom}
-        className="!w-3 !h-3 !bg-primary/60 !border-2 !border-background hover:!bg-primary transition-colors"
+        className="!w-3.5 !h-3.5 !bg-primary/60 !border-2 !border-background hover:!bg-primary hover:!shadow-[0_0_6px_2px_hsl(var(--primary)/0.5)] transition-all"
       />
     </motion.div>
   );
