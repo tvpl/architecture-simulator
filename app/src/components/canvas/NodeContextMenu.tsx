@@ -47,6 +47,21 @@ const SERVICE_PRESETS: Partial<Record<string, ServicePreset[]>> = {
     { label: "Prod (3 nós)", config: { nodeCount: 3, instanceType: "m5.large", minNodes: 2, maxNodes: 10 } },
     { label: "HA (5 nós)", config: { nodeCount: 5, instanceType: "m5.xlarge", minNodes: 3, maxNodes: 20 } },
   ],
+  bedrock: [
+    { label: "Haiku", config: { modelId: "anthropic.claude-3-haiku", requestsPerMonth: 50_000, inputTokensPerRequest: 500, outputTokensPerRequest: 200 } },
+    { label: "Sonnet", config: { modelId: "anthropic.claude-3-sonnet", requestsPerMonth: 10_000, inputTokensPerRequest: 1000, outputTokensPerRequest: 500 } },
+    { label: "Titan", config: { modelId: "amazon.titan-text-express", requestsPerMonth: 100_000, inputTokensPerRequest: 300, outputTokensPerRequest: 150 } },
+  ],
+  "sfn-express": [
+    { label: "Low", config: { executionsPerMonth: 10_000, avgDurationSec: 2, memoryMB: 64 } },
+    { label: "Standard", config: { executionsPerMonth: 100_000, avgDurationSec: 5, memoryMB: 64 } },
+    { label: "High", config: { executionsPerMonth: 1_000_000, avgDurationSec: 10, memoryMB: 128 } },
+  ],
+  "eventbridge-pipes": [
+    { label: "Low", config: { eventsPerMonth: 100_000, filterRatio: 0.5 } },
+    { label: "Standard", config: { eventsPerMonth: 1_000_000, filterRatio: 1.0 } },
+    { label: "High", config: { eventsPerMonth: 10_000_000, filterRatio: 1.0 } },
+  ],
 };
 import { cn } from "@/lib/utils";
 import { useFlowStore, selectInfraHostOptions } from "@/stores/flow-store";

@@ -33,6 +33,8 @@ import { AppServiceNode } from "@/components/nodes/app/AppServiceNode";
 import { HostGroupNode, type HostGroupNodeData } from "@/components/nodes/app/HostGroupNode";
 import { ProtocolEdge } from "@/components/edges/ProtocolEdge";
 import { NodeContextMenu, type ContextMenuState } from "./NodeContextMenu";
+import { NodeSearchOverlay } from "./NodeSearchOverlay";
+import { SuggestionsOverlay } from "./SuggestionsOverlay";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { useAutoLayout } from "@/hooks/use-auto-layout";
 
@@ -435,6 +437,8 @@ export function FlowCanvas() {
         />
 
         <CanvasEffects onStartRename={startRename} />
+        <NodeSearchOverlay />
+        <SuggestionsOverlay />
 
         {/* Empty state onboarding */}
         {showEmptyOnboarding && (

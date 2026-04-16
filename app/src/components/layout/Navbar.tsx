@@ -1,5 +1,5 @@
 "use client";
-import React, { useRef, useCallback } from "react";
+import React, { useRef, useCallback, useState } from "react";
 import { motion } from "framer-motion";
 import {
   Play,
@@ -55,9 +55,11 @@ import { useHistoryStore } from "@/stores/history-store";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useCommandPaletteStore } from "@/stores/command-palette-store";
+import { ImportCFDialog } from "@/components/dialogs/ImportCFDialog";
 
 export function Navbar() {
   const importRef = useRef<HTMLInputElement>(null);
+  const [cfImportOpen, setCFImportOpen] = useState(false);
 
   const { exportProject, importProject, clearCanvas, projectName, setProjectName, nodes, solutionNodes } =
     useFlowStore();
@@ -401,6 +403,10 @@ export function Navbar() {
                 <Upload className="w-3.5 h-3.5 text-muted-foreground" />
                 Abrir JSON
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setCFImportOpen(true)}>
+                <Upload className="w-3.5 h-3.5 text-muted-foreground" />
+                CloudFormation JSON
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuLabel>Exportar como</DropdownMenuLabel>
               <DropdownMenuItem onClick={handleExportImage}>
@@ -630,6 +636,8 @@ export function Navbar() {
       </nav>
 
       <input ref={importRef} type="file" accept=".json" className="hidden" onChange={handleFileChange} />
+
+      <ImportCFDialog open={cfImportOpen} onClose={() => setCFImportOpen(false)} />
     </TooltipProvider>
   );
 }

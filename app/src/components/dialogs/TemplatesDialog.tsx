@@ -28,6 +28,11 @@ const CATEGORY_COLORS: Record<ArchitectureTemplate["category"], string> = {
   security: "bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400",
   microservices: "bg-teal-100 text-teal-700 dark:bg-teal-950/30 dark:text-teal-400",
   "full-stack": "bg-indigo-100 text-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-400",
+  hosting: "bg-sky-100 text-sky-700 dark:bg-sky-950/30 dark:text-sky-400",
+  bff: "bg-cyan-100 text-cyan-700 dark:bg-cyan-950/30 dark:text-cyan-400",
+  "ai-ml": "bg-violet-100 text-violet-700 dark:bg-violet-950/30 dark:text-violet-400",
+  "event-driven": "bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400",
+  "multi-region": "bg-green-100 text-green-700 dark:bg-green-950/30 dark:text-green-400",
 };
 
 function formatDate(ts: number): string {
