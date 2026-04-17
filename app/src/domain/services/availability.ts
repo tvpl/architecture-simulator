@@ -45,7 +45,11 @@ const BASE_AVAILABILITY: Record<string, number> = {
   opensearch: 99.9,
   glue: 99.9,
   sagemaker: 99.9,
+  bedrock: 99.9,
+  "sfn-express": 99.9,
+  "eventbridge-pipes": 99.9,
   note: 100,
+  region: 100,
 };
 
 export function calculateAvailability(node: ArchitectureNode): number {

@@ -13,7 +13,13 @@ import { ServiceIcon } from "./ServiceIcon";
 // Per-type visual theme
 const CONTAINER_THEMES: Record<
   string,
-  { border: string; bg: string; accentBg: string; badge: string }
+  {
+    border: string;
+    bg: string;
+    accentBg: string;
+    badge: string;
+    label?: (data: { config: unknown; label: string }) => string;
+  }
 > = {
   vpc: {
     border: "border-violet-400/60",
@@ -33,11 +39,20 @@ const CONTAINER_THEMES: Record<
     accentBg: "bg-slate-500",
     badge: "bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300",
   },
+  region: {
+    border: "border-indigo-500/30",
+    bg: "bg-indigo-500/[0.04]",
+    accentBg: "bg-indigo-500",
+    badge: "bg-indigo-100 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-400",
+    label: (data) =>
+      `\u{1F30E} ${(data.config as { regionCode?: string }).regionCode ?? "region"}`,
+  },
 };
 
 const ContainerNode = memo(function ContainerNode({ data, selected }: NodeProps<FlowNode>) {
   const def = registry.get(data.type);
   const theme = CONTAINER_THEMES[data.type] ?? CONTAINER_THEMES["security-group"];
+  const displayLabel = theme.label ? theme.label({ config: data.config, label: data.label }) : data.label;
 
   // Count direct children of this container
   const childCount = useFlowStore((s) =>
@@ -75,7 +90,7 @@ const ContainerNode = memo(function ContainerNode({ data, selected }: NodeProps<
           </div>
         )}
         <span className="text-xs font-semibold text-foreground/80 bg-background/80 backdrop-blur-sm px-1.5 py-0.5 rounded truncate">
-          {data.label}
+          {displayLabel}
         </span>
 
         {/* Subnet public/private badge */}

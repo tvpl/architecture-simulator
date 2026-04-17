@@ -14,6 +14,7 @@
 import { useEffect, useRef } from "react";
 import { useFlowStore } from "@/stores/flow-store";
 import { useSelectionStore } from "@/stores/selection-store";
+import { useUIStore } from "@/stores/ui-store";
 
 interface UseKeyboardShortcutsOptions {
   onStartRename?: (nodeId: string) => void;
@@ -78,6 +79,20 @@ export function useKeyboardShortcuts(options: UseKeyboardShortcutsOptions = {}) 
         if (selectedNodeId) {
           useFlowStore.getState().duplicateNode(selectedNodeId);
         }
+        return;
+      }
+
+      // ── Select All ────────────────────────────────────────────────────────
+      if (ctrl && e.key === "a") {
+        e.preventDefault();
+        useFlowStore.getState().selectAllNodes();
+        return;
+      }
+
+      // ── Auto-layout ───────────────────────────────────────────────────────
+      if (ctrl && e.shiftKey && e.key === "L") {
+        e.preventDefault();
+        useUIStore.getState().requestAutoLayout();
         return;
       }
 

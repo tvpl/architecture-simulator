@@ -17,7 +17,7 @@ import {
 import "@xyflow/react/dist/style.css";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { LayoutTemplate, Upload, MousePointer2, Command, Trash2, Copy } from "lucide-react";
+import { LayoutTemplate, Upload, MousePointer2, Trash2, Copy } from "lucide-react";
 import { useFlowStore, type FlowNode, type FlowEdge, type AppFlowNode, selectInfraHostOptions } from "@/stores/flow-store";
 import { useSelectionStore } from "@/stores/selection-store";
 import { useUIStore } from "@/stores/ui-store";
@@ -33,6 +33,8 @@ import { AppServiceNode } from "@/components/nodes/app/AppServiceNode";
 import { HostGroupNode, type HostGroupNodeData } from "@/components/nodes/app/HostGroupNode";
 import { ProtocolEdge } from "@/components/edges/ProtocolEdge";
 import { NodeContextMenu, type ContextMenuState } from "./NodeContextMenu";
+import { NodeSearchOverlay } from "./NodeSearchOverlay";
+import { SuggestionsOverlay } from "./SuggestionsOverlay";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { useAutoLayout } from "@/hooks/use-auto-layout";
 
@@ -342,6 +344,7 @@ export function FlowCanvas() {
       xray: "#0891b2", redshift: "#7c3aed", athena: "#0d9488", opensearch: "#2563eb",
       glue: "#d97706", sagemaker: "#16a34a",
       note: "#eab308",
+      region: "#4f46e5",
       // L2 app component colors
       microservice: "#6366f1", worker: "#8b5cf6", consumer: "#f59e0b",
       producer: "#f97316", api: "#3b82f6", sidecar: "#14b8a6",
@@ -434,6 +437,8 @@ export function FlowCanvas() {
         />
 
         <CanvasEffects onStartRename={startRename} />
+        <NodeSearchOverlay />
+        <SuggestionsOverlay />
 
         {/* Empty state onboarding */}
         {showEmptyOnboarding && (

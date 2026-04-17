@@ -6,7 +6,7 @@
  */
 import React, { useState, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { X, Trash2, Copy, Server } from "lucide-react";
+import { X, Trash2, Copy, Server, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { registry } from "@/registry";
 import { appComponentRegistry } from "@/registry/app-components";
@@ -25,8 +25,30 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { ServiceIcon } from "@/components/nodes/base/ServiceIcon";
 
-export function PropertiesPanel() {
-  const { propertiesPanelOpen, closePropertiesPanel } = useUIStore();
+// Module-level component — must live outside PropertiesPanel to avoid react-hooks/static-components
+function DockButton() {
+  const propertiesPanelDocked = useUIStore((s) => s.propertiesPanelDocked);
+  const togglePropertiesPanelDocked = useUIStore((s) => s.togglePropertiesPanelDocked);
+  return (
+    <button
+      onClick={togglePropertiesPanelDocked}
+      title={propertiesPanelDocked ? "Destacar painel" : "Ancorar painel"}
+      className="p-1 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+    >
+      {propertiesPanelDocked
+        ? <PanelRightOpen className="w-3.5 h-3.5" />
+        : <PanelRightClose className="w-3.5 h-3.5" />}
+    </button>
+  );
+}
+
+interface PropertiesPanelProps {
+  /** When true, renders as a docked split panel (no absolute positioning, no animation wrapper) */
+  docked?: boolean;
+}
+
+export function PropertiesPanel({ docked = false }: PropertiesPanelProps) {
+  const { propertiesPanelOpen, closePropertiesPanel, togglePropertiesPanelDocked } = useUIStore();
   const { selectedNodeId, selectedEdgeId } = useSelectionStore();
   const {
     nodes, edges, updateNodeData, updateNodeConfig, updateEdgeData,
@@ -34,7 +56,8 @@ export function PropertiesPanel() {
     solutionNodes, solutionEdges, removeSolutionEdge,
   } = useFlowStore();
 
-  const isVisible = propertiesPanelOpen && (!!selectedNodeId || !!selectedEdgeId);
+  const hasSelection = !!selectedNodeId || !!selectedEdgeId;
+  const isVisible = docked ? hasSelection : (propertiesPanelOpen && hasSelection);
 
   // Determine if selection is L2
   const isL2Node = selectedNodeId
@@ -44,16 +67,13 @@ export function PropertiesPanel() {
     ? solutionEdges.some((e) => e.id === selectedEdgeId)
     : false;
 
-  return (
-    <AnimatePresence>
-      {isVisible && (
-    <motion.div
-      initial={{ x: "100%", opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      exit={{ x: "100%", opacity: 0 }}
-      transition={{ type: "spring", damping: 30, stiffness: 300 }}
-      className="absolute top-2 right-2 bottom-2 w-80 z-20 flex flex-col bg-background border border-border rounded-xl shadow-xl overflow-hidden"
-    >
+  const panelContent = isVisible ? (
+    <div className={cn(
+      "flex flex-col bg-background overflow-hidden",
+      docked
+        ? "h-full w-full"
+        : "absolute top-2 right-2 bottom-2 w-80 z-20 border border-border rounded-xl shadow-xl"
+    )}>
       {/* L1 Node */}
       {selectedNodeId && !isL2Node && (
         <NodePropertiesContent
@@ -65,6 +85,7 @@ export function PropertiesPanel() {
           onRemove={removeNode}
           onDuplicate={duplicateNode}
           onClose={closePropertiesPanel}
+          extraHeaderActions={<DockButton />}
         />
       )}
 
@@ -100,7 +121,44 @@ export function PropertiesPanel() {
           onClose={closePropertiesPanel}
         />
       )}
-    </motion.div>
+
+      {/* Docked but nothing selected */}
+      {docked && !hasSelection && (
+        <div className="flex-1 flex flex-col items-center justify-center gap-3 p-6 text-center">
+          <div className="p-3 rounded-xl bg-muted/50">
+            <Server className="w-6 h-6 text-muted-foreground/40" />
+          </div>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Selecione um nó ou conexão no canvas para ver e editar suas propriedades.
+          </p>
+          <button
+            onClick={togglePropertiesPanelDocked}
+            className="text-xs text-primary hover:underline flex items-center gap-1"
+          >
+            <PanelRightOpen className="w-3 h-3" />
+            Fechar painel lateral
+          </button>
+        </div>
+      )}
+    </div>
+  ) : null;
+
+  if (docked) {
+    return panelContent;
+  }
+
+  return (
+    <AnimatePresence>
+      {isVisible && (
+        <motion.div
+          initial={{ x: "100%", opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          exit={{ x: "100%", opacity: 0 }}
+          transition={{ type: "spring", damping: 30, stiffness: 300 }}
+          className="absolute top-2 right-2 bottom-2 w-80 z-20"
+        >
+          {panelContent}
+        </motion.div>
       )}
     </AnimatePresence>
   );
@@ -116,6 +174,7 @@ function NodePropertiesContent({
   onRemove,
   onDuplicate,
   onClose,
+  extraHeaderActions,
 }: {
   nodeId: string;
   nodes: import("@/stores/flow-store").FlowNode[];
@@ -124,6 +183,7 @@ function NodePropertiesContent({
   onRemove: (id: string) => void;
   onDuplicate: (id: string) => void;
   onClose: () => void;
+  extraHeaderActions?: React.ReactNode;
 }) {
   const flowNode = nodes.find((n) => n.id === nodeId);
   const data = flowNode?.data;
@@ -162,6 +222,7 @@ function NodePropertiesContent({
           <div className="text-sm font-semibold text-foreground truncate">{data.label}</div>
           <div className="text-xs text-muted-foreground">{def?.label ?? data.type}</div>
         </div>
+        {extraHeaderActions}
         <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={onClose}>
           <X className="w-4 h-4" />
         </Button>

@@ -1,5 +1,5 @@
 "use client";
-import React, { useRef, useCallback } from "react";
+import React, { useRef, useCallback, useState } from "react";
 import { motion } from "framer-motion";
 import {
   Play,
@@ -26,6 +26,13 @@ import {
   PanelRight,
   Eye,
   Command,
+  Code2,
+  HelpCircle,
+  FileImage,
+  Award,
+  BookMarked,
+  Share2,
+  GitCompare,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -48,9 +55,11 @@ import { useHistoryStore } from "@/stores/history-store";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useCommandPaletteStore } from "@/stores/command-palette-store";
+import { ImportCFDialog } from "@/components/dialogs/ImportCFDialog";
 
 export function Navbar() {
   const importRef = useRef<HTMLInputElement>(null);
+  const [cfImportOpen, setCFImportOpen] = useState(false);
 
   const { exportProject, importProject, clearCanvas, projectName, setProjectName, nodes, solutionNodes } =
     useFlowStore();
@@ -67,7 +76,12 @@ export function Navbar() {
     validationPanelOpen,
     toggleWhatIfPanel,
     whatIfPanelOpen,
+    wellArchitectedPanelOpen,
+    toggleWellArchitectedPanel,
     openTemplatesDialog,
+    openShortcutsModal,
+    comparisonModeActive,
+    toggleComparisonMode,
   } = useUIStore();
   const { theme, toggleTheme } = useThemeStore();
   const { toggleHistoryPanel } = useHistoryStore();
@@ -168,6 +182,54 @@ export function Navbar() {
       toast.error("Erro ao exportar imagem.");
     }
   }, []);
+
+  const handleExportSvg = useCallback(async () => {
+    try {
+      const { toSvg } = await import("html-to-image");
+      const viewport = document.querySelector<HTMLElement>(".react-flow__viewport");
+      if (!viewport) { toast.error("Nenhum diagrama encontrado."); return; }
+      const dataUrl = await toSvg(viewport);
+      const a = document.createElement("a");
+      a.href = dataUrl;
+      a.download = `arquitetura-${Date.now()}.svg`;
+      a.click();
+      toast.success("SVG exportado.");
+    } catch {
+      toast.error("Erro ao exportar SVG.");
+    }
+  }, []);
+
+  const handleExportTerraform = useCallback(async () => {
+    const domainNodes = selectDomainNodes(useFlowStore.getState());
+    const domainEdges = selectDomainEdges(useFlowStore.getState());
+    if (domainNodes.length === 0) { toast.warning("Adicione componentes primeiro."); return; }
+    const { generateTerraformTemplate } = await import("@/domain/services/terraform-export");
+    const hcl = generateTerraformTemplate(domainNodes, domainEdges, projectName);
+    const blob = new Blob([hcl], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${projectName.replace(/\s+/g, "-").toLowerCase()}.tf`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Terraform exportado!");
+  }, [projectName]);
+
+  const handleExportCDK = useCallback(async () => {
+    const domainNodes = selectDomainNodes(useFlowStore.getState());
+    const domainEdges = selectDomainEdges(useFlowStore.getState());
+    if (domainNodes.length === 0) { toast.warning("Adicione componentes primeiro."); return; }
+    const { generateCDKApp } = await import("@/domain/services/cdk-export");
+    const ts = generateCDKApp(domainNodes, domainEdges, projectName);
+    const blob = new Blob([ts], { type: "text/typescript" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${projectName.replace(/\s+/g, "-").toLowerCase()}-cdk.ts`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("AWS CDK exportado!");
+  }, [projectName]);
 
   const handleClear = useCallback(() => {
     if (confirm("Limpar canvas? Esta ação não pode ser desfeita.")) {
@@ -326,6 +388,10 @@ export function Navbar() {
                 Copiar link
                 <DropdownMenuShortcut>URL</DropdownMenuShortcut>
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => window.dispatchEvent(new Event("open-save-template"))}>
+                <BookMarked className="w-3.5 h-3.5 text-muted-foreground" />
+                Salvar como Template
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuLabel>Projeto</DropdownMenuLabel>
               <DropdownMenuItem onClick={handleExportJson}>
@@ -337,6 +403,10 @@ export function Navbar() {
                 <Upload className="w-3.5 h-3.5 text-muted-foreground" />
                 Abrir JSON
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setCFImportOpen(true)}>
+                <Upload className="w-3.5 h-3.5 text-muted-foreground" />
+                CloudFormation JSON
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuLabel>Exportar como</DropdownMenuLabel>
               <DropdownMenuItem onClick={handleExportImage}>
@@ -344,9 +414,24 @@ export function Navbar() {
                 Imagem PNG
                 <DropdownMenuShortcut>2×</DropdownMenuShortcut>
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportSvg}>
+                <FileImage className="w-3.5 h-3.5 text-muted-foreground" />
+                Imagem SVG
+                <DropdownMenuShortcut>SVG</DropdownMenuShortcut>
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={handleExportCloudFormation} disabled={nodes.length === 0}>
                 <FileCode2 className="w-3.5 h-3.5 text-muted-foreground" />
                 CloudFormation
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportTerraform} disabled={nodes.length === 0}>
+                <Code2 className="w-3.5 h-3.5 text-muted-foreground" />
+                Terraform HCL
+                <DropdownMenuShortcut>.tf</DropdownMenuShortcut>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportCDK} disabled={nodes.length === 0}>
+                <Code2 className="w-3.5 h-3.5 text-muted-foreground" />
+                AWS CDK (TypeScript)
+                <DropdownMenuShortcut>.ts</DropdownMenuShortcut>
               </DropdownMenuItem>
               {solutionNodes.length > 0 && (
                 <DropdownMenuItem onClick={handleExportK8s}>
@@ -357,6 +442,39 @@ export function Navbar() {
               )}
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {/* ── Share button ─────────────────────────────────────────────── */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                variant="outline"
+                className="h-8 w-8"
+                onClick={handleShare}
+              >
+                <Share2 className="w-3.5 h-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Compartilhar diagrama</TooltipContent>
+          </Tooltip>
+
+          {/* ── Comparison mode toggle ────────────────────────────────────── */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                variant="outline"
+                className={cn(
+                  "h-8 w-8",
+                  comparisonModeActive && "text-primary border-primary/40 bg-primary/5"
+                )}
+                onClick={toggleComparisonMode}
+              >
+                <GitCompare className="w-3.5 h-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Comparação</TooltipContent>
+          </Tooltip>
 
           {/* ── View dropdown ────────────────────────────────────────────── */}
           <DropdownMenu>
@@ -430,6 +548,10 @@ export function Navbar() {
                 <Calculator className="w-3.5 h-3.5 text-muted-foreground mr-2" />
                 What-if
               </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem checked={wellArchitectedPanelOpen} onCheckedChange={toggleWellArchitectedPanel}>
+                <Award className="w-3.5 h-3.5 text-muted-foreground mr-2" />
+                Well-Architected
+              </DropdownMenuCheckboxItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem variant="destructive" onClick={handleClear}>
                 <RotateCcw className="w-3.5 h-3.5" />
@@ -485,6 +607,16 @@ export function Navbar() {
 
           <div className="h-5 w-px bg-border mx-0.5" />
 
+          {/* Keyboard shortcuts help */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={openShortcutsModal}>
+                <HelpCircle className="w-4 h-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Atalhos de teclado (?)</TooltipContent>
+          </Tooltip>
+
           {/* Theme toggle */}
           <motion.div whileTap={{ rotate: 20 }} transition={{ duration: 0.15 }}>
             <Tooltip>
@@ -504,6 +636,8 @@ export function Navbar() {
       </nav>
 
       <input ref={importRef} type="file" accept=".json" className="hidden" onChange={handleFileChange} />
+
+      <ImportCFDialog open={cfImportOpen} onClose={() => setCFImportOpen(false)} />
     </TooltipProvider>
   );
 }

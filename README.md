@@ -6,7 +6,7 @@ Interactive visual tool for designing, simulating, and analyzing AWS cloud archi
 
 ## Features
 
-- **55+ AWS services** across 7 categories (Compute, Networking, Messaging, Storage, Security, Integration, Analytics & ML)
+- **60+ AWS services** across 7 categories (Compute, Networking, Messaging, Storage, Security, Integration, Analytics & ML)
 - **Landing page** at `/` — animated hero, feature showcase, and keyboard shortcuts reference
 - **4-layer view system** — Architecture / Services / Cost / Simulation
 - **Simulation engine** — DFS graph traversal, bottleneck detection, latency/throughput/availability per path
@@ -22,13 +22,17 @@ Interactive visual tool for designing, simulating, and analyzing AWS cloud archi
 - **Edge label inline editor** — double-click a protocol badge to set a custom label on any connection
 - **Note/annotation nodes** — sticky notes in 5 colors, with inline editing
 - **Context menu** — right-click any node to rename, duplicate, open properties, or apply config presets
+- **URL sharing** — serialize the full project into a URL hash; recipients open the link and the diagram loads automatically
+- **Well-Architected panel** — analyze diagrams against all 6 AWS Well-Architected Framework pillars with per-pillar scores and actionable findings
+- **Comparison mode** — side-by-side diff of any two history snapshots showing added/removed nodes and edges
+- **New services** — Bedrock (Claude Haiku/Sonnet/Titan presets), SFN Express (Step Functions Express workflows), EventBridge Pipes
 - **Version history** — named snapshots with diff badges (±nodes/edges vs current), restore, persisted to localStorage
 - **Undo/redo** — full history via zundo temporal store
 - **Auto-layout** — dagre-based automatic node arrangement
 - **Dark/light mode** — persisted to localStorage
 - **JSON export/import** — save and restore complete diagrams
 - **PNG image export** — export canvas as image
-- **Keyboard shortcuts** — Delete, Ctrl+Z/Y, Ctrl+D, Ctrl+Shift+E, F2, Escape, Cmd+K
+- **Keyboard shortcuts** — Delete, Ctrl+Z/Y, Ctrl+D, Ctrl+Shift+E, F2, Escape, Cmd+K, Cmd+F (node search)
 
 ## Tech Stack
 
@@ -57,7 +61,7 @@ npm run dev        # http://localhost:3000
 
 ```bash
 npm run build      # Production build (must pass with 0 errors)
-npm test           # Run all Vitest unit tests (95 tests)
+npm test           # Run all Vitest unit tests (144 tests)
 npm run lint       # ESLint check
 ```
 
@@ -136,10 +140,10 @@ app/
 | Compute | EC2, ECS, EKS, Lambda, Fargate, ECR |
 | Networking | VPC, Subnet, Security Group, ALB, CloudFront, Route53, API Gateway, NAT Gateway |
 | Storage | S3, RDS, DynamoDB, ElastiCache, EFS, Aurora |
-| Messaging | SQS, SNS, Kinesis, MSK, EventBridge, SES |
+| Messaging | SQS, SNS, Kinesis, MSK, EventBridge, SES, EventBridge Pipes |
 | Security | WAF, Shield, KMS, Secrets Manager, Cognito, IAM, CloudTrail |
-| Integration | Step Functions, Glue Workflow, AppSync, CodePipeline, X-Ray |
-| Analytics & ML | Redshift, Athena, OpenSearch, Glue, SageMaker |
+| Integration | Step Functions, SFN Express, Glue Workflow, AppSync, CodePipeline, X-Ray |
+| Analytics & ML | Redshift, Athena, OpenSearch, Glue, SageMaker, Bedrock |
 
 ## Adding a New AWS Service
 

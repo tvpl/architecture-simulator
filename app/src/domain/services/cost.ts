@@ -159,8 +159,27 @@ export function calculateServiceCost(
       const instanceCost = cfg.instanceCount * 0.05 * 730;
       return { monthlyCostUSD: instanceCost, details: `${cfg.instanceCount}x ${cfg.instanceType}`, lineItems: [{ label: "Instâncias ML", amount: instanceCost }] };
     }
+    case "bedrock": {
+      const cfg = node.config as import("../entities/node").BedrockConfig;
+      const inputCost = (cfg.inputTokensPerRequest * cfg.requestsPerMonth / 1000) * 0.003;
+      const outputCost = (cfg.outputTokensPerRequest * cfg.requestsPerMonth / 1000) * 0.015;
+      return { monthlyCostUSD: inputCost + outputCost, details: `${cfg.modelId}, ${cfg.requestsPerMonth.toLocaleString()} req/mês`, lineItems: [{ label: "Tokens de entrada", amount: inputCost }, { label: "Tokens de saída", amount: outputCost }] };
+    }
+    case "sfn-express": {
+      const cfg = node.config as import("../entities/node").SFNExpressConfig;
+      const transitionCost = cfg.executionsPerMonth * 10 / 1_000_000 * 1;
+      const durationCost = cfg.executionsPerMonth * cfg.avgDurationSec * cfg.memoryMB / 64 / 3600 * 0.00001;
+      return { monthlyCostUSD: transitionCost + durationCost, details: `${cfg.executionsPerMonth.toLocaleString()} execuções/mês`, lineItems: [{ label: "Transições de estado", amount: transitionCost }, { label: "Duração", amount: durationCost }] };
+    }
+    case "eventbridge-pipes": {
+      const cfg = node.config as import("../entities/node").EventBridgePipesConfig;
+      const cost = cfg.eventsPerMonth * cfg.filterRatio / 1_000_000 * 0.40;
+      return { monthlyCostUSD: cost, details: `${cfg.eventsPerMonth.toLocaleString()} eventos/mês, filtro ${cfg.filterRatio}`, lineItems: [{ label: "Eventos processados", amount: cost }] };
+    }
     case "note":
       return { monthlyCostUSD: 0, details: "Anotação (sem custo)", lineItems: [] };
+    case "region":
+      return { monthlyCostUSD: 0, details: "Container sem custo", lineItems: [] };
     default:
       return { monthlyCostUSD: 0, details: "Free or not priced", lineItems: [] };
   }

@@ -105,7 +105,31 @@ const xray: ServiceDefinition = {
   ],
 };
 
+const sfnExpress: ServiceDefinition = {
+  type: "sfn-express",
+  label: "SFN Express",
+  description: "Orquestração de curta duração e alta frequência com Step Functions Express",
+  category: "integration",
+  iconName: "Workflow",
+  color: "text-fuchsia-500",
+  bgColor: "bg-fuchsia-50 dark:bg-fuchsia-950/30",
+  borderColor: "border-fuchsia-400",
+  allowedIncomingProtocols: ["https", "eventbridge"],
+  allowedOutgoingProtocols: ["https", "sqs", "sns", "eventbridge"],
+  configSections: [
+    {
+      title: "Express Workflow",
+      fields: [
+        { kind: "number", key: "executionsPerMonth", label: "Execuções/mês", min: 0, max: 1_000_000_000, step: 10_000 },
+        { kind: "number", key: "avgDurationSec", label: "Duração média", min: 0, max: 300, step: 1, unit: "s" },
+        { kind: "number", key: "memoryMB", label: "Memória", min: 64, max: 3008, step: 64, unit: "MB" },
+      ],
+    },
+  ],
+};
+
 registry.register(stepFunctions);
 registry.register(cloudwatch);
 registry.register(codepipeline);
 registry.register(xray);
+registry.register(sfnExpress);

@@ -149,8 +149,43 @@ const sagemaker: ServiceDefinition = {
   ],
 };
 
+const bedrock: ServiceDefinition = {
+  type: "bedrock",
+  label: "Bedrock",
+  description: "Serviço gerenciado de IA generativa com modelos fundacionais",
+  category: "analytics",
+  iconName: "Brain",
+  color: "text-violet-600",
+  bgColor: "bg-violet-50 dark:bg-violet-950/30",
+  borderColor: "border-violet-500",
+  allowedIncomingProtocols: ["https"],
+  allowedOutgoingProtocols: ["https"],
+  configSections: [
+    {
+      title: "Modelo",
+      fields: [
+        {
+          kind: "select",
+          key: "modelId",
+          label: "Modelo",
+          options: [
+            { value: "anthropic.claude-3-sonnet", label: "Claude 3 Sonnet" },
+            { value: "anthropic.claude-3-haiku", label: "Claude 3 Haiku" },
+            { value: "amazon.titan-text-express", label: "Titan Text Express" },
+            { value: "meta.llama3-8b-instruct", label: "Llama 3 8B Instruct" },
+          ],
+        },
+        { kind: "number", key: "requestsPerMonth", label: "Requisições/mês", min: 0, max: 10_000_000, step: 1000 },
+        { kind: "number", key: "inputTokensPerRequest", label: "Tokens de entrada/req", min: 1, max: 100_000, step: 100 },
+        { kind: "number", key: "outputTokensPerRequest", label: "Tokens de saída/req", min: 1, max: 100_000, step: 100 },
+      ],
+    },
+  ],
+};
+
 registry.register(redshift);
 registry.register(athena);
 registry.register(opensearch);
 registry.register(glue);
 registry.register(sagemaker);
+registry.register(bedrock);

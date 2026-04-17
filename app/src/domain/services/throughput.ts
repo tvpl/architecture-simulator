@@ -111,8 +111,25 @@ export function calculateMaxThroughput(node: ArchitectureNode): number {
       return cfg.instanceCount * 1000; // inferences/sec
     }
 
+    case "bedrock": {
+      const cfg = node.config as import("../entities/node").BedrockConfig;
+      return Math.min(1000, Math.ceil(cfg.requestsPerMonth / (30 * 24 * 3600)));
+    }
+
+    case "sfn-express": {
+      const cfg = node.config as import("../entities/node").SFNExpressConfig;
+      return Math.min(100_000, Math.ceil(cfg.executionsPerMonth / (30 * 24 * 3600)));
+    }
+
+    case "eventbridge-pipes": {
+      const cfg = node.config as import("../entities/node").EventBridgePipesConfig;
+      return Math.min(10_000, Math.ceil(cfg.eventsPerMonth / (30 * 24 * 3600)));
+    }
+
     case "note":
       return 0;
+    case "region":
+      return Infinity;
 
     default:
       return 10_000;

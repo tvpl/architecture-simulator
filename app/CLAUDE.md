@@ -8,7 +8,7 @@ Guia para desenvolvedores e agentes de IA trabalhando neste repositório.
 cd app/                      # SEMPRE trabalhar a partir daqui
 npm run dev                  # Dev server → http://localhost:3000
 npm run build                # DEVE passar com 0 erros antes de commit
-npm test                     # Vitest — 95 testes
+npm test                     # Vitest — 144 testes
 npm run lint                 # ESLint — deve terminar com 0 errors
 ```
 
@@ -43,22 +43,22 @@ Além dos 8 passos acima:
 - Criar `registry/<nova-categoria>/index.ts`
 - Importar em `registry/index.ts`
 
-## Serviços AWS Disponíveis (55+)
+## Serviços AWS Disponíveis (60+)
 
 ### Por Categoria
 
 | Categoria | Serviços |
 |-----------|---------|
-| compute | ec2, ecs, eks, lambda, fargate, **ecr** |
+| compute | ec2, ecs, eks, lambda, fargate, ecr |
 | networking | vpc, subnet, security-group, alb, cloudfront, route53, api-gateway, nat-gateway |
 | storage | s3, rds, dynamodb, elasticache, efs, aurora |
-| messaging | sqs, sns, kinesis, msk, eventbridge, **ses** |
-| security | waf, shield, kms, secrets-manager, cognito, iam, **cloudtrail** |
-| integration | step-functions, glue-workflow, app-sync, **codepipeline**, **xray** |
-| analytics | **redshift**, **athena**, **opensearch**, **glue**, **sagemaker** |
-| annotations | note, vpc (container), subnet (container) |
+| messaging | sqs, sns, kinesis, msk, eventbridge, ses, **eventbridge-pipes** |
+| security | waf, shield, kms, secrets-manager, cognito, iam, cloudtrail |
+| integration | step-functions, glue-workflow, app-sync, codepipeline, xray, **sfn-express** |
+| analytics | redshift, athena, opensearch, glue, sagemaker, **bedrock** |
+| annotations | note, vpc (container), subnet (container), **region** (container) |
 
-**Negrito** = adicionado recentemente. A categoria `analytics` é nova.
+**Negrito** = adicionados recentemente.
 
 ## Regras do Domínio
 
@@ -70,10 +70,11 @@ Além dos 8 passos acima:
 
 | Store | Arquivo | Persistência | Função |
 |-------|---------|-------------|--------|
-| Nodes/Edges | `flow-store.ts` | localStorage `aws-arch-v2` | Canvas state + undo/redo (zundo) |
+| Nodes/Edges | `flow-store.ts` | localStorage `aws-arch-v2` | Canvas state + undo/redo (zundo) + `selectAllNodes()` |
 | Simulação | `simulation-store.ts` | — | Resultados da simulação |
 | Camada ativa | `layer-store.ts` | — | architecture/services/cost/simulation |
-| Painéis UI | `ui-store.ts` | — | Open/close de todos os painéis + `templatesDialogOpen` |
+| Painéis UI | `ui-store.ts` | localStorage `aws-arch-ui` (parcial) | Todos os painéis, modais, sidebar, comparison mode |
+| Templates do usuário | `user-templates-store.ts` | localStorage `aws-arch-user-templates` | Templates salvos pelo usuário |
 | Tema | `theme-store.ts` | localStorage `aws-arch-theme` | light/dark |
 | Validação | `validation-store.ts` | — | Erros/avisos reativos |
 | Histórico | `history-store.ts` | localStorage `aws-arch-history` | Snapshots nomeados |
@@ -82,16 +83,37 @@ Além dos 8 passos acima:
 
 ```typescript
 const {
+  // Sidebar
+  sidebarCollapsed, toggleSidebar, setSidebarWidth,
+  sidebarWidth,   // persisted (200–480px), controlled via drag handle
+
+  // Properties Panel
   propertiesPanelOpen, openPropertiesPanel, closePropertiesPanel,
+  propertiesPanelDocked, togglePropertiesPanelDocked, // split mode vs floating
+
+  // Other panels
   simulationPanelOpen, openSimulationPanel, closeSimulationPanel,
   validationPanelOpen, toggleValidationPanel,
-  historyPanelOpen,   toggleHistoryPanel,
-  whatIfPanelOpen,    toggleWhatIfPanel,
+  whatIfPanelOpen,     toggleWhatIfPanel,
+  wellArchitectedPanelOpen, toggleWellArchitectedPanel,
+  comparisonModeActive, toggleComparisonMode,
+
+  // Dialogs
   templatesDialogOpen, openTemplatesDialog, closeTemplatesDialog,
+  shortcutsModalOpen,  openShortcutsModal, closeShortcutsModal,
+
+  // Onboarding
+  onboardingCompleted, completeOnboarding, resetOnboarding,
+
+  // Category expansion (sidebar)
+  expandedCategories, toggleExpandedCategory, setExpandedCategories,
+
+  // Auto-layout
+  autoLayoutPending, autoLayoutDirection, requestAutoLayout, clearAutoLayout,
 } = useUIStore();
 ```
 
-`TemplatesDialog` é gerenciado globalmente via `GlobalDialogs` em `app/editor/page.tsx` — não instanciar diretamente em outros componentes.
+`TemplatesDialog`, `KeyboardShortcutsModal`, `SaveTemplateDialog` e `ComparisonPanel` são gerenciados globalmente via `GlobalDialogs`/`EditorMain` em `app/editor/page.tsx` — não instanciar diretamente em outros componentes.
 
 ## Undo/Redo (zundo)
 
@@ -128,15 +150,23 @@ import { useTemporalFlowStore } from "@/stores/flow-store";
 | `src/domain/services/simulation-engine.ts` | `runSimulation()` — DFS + bottleneck detection |
 | `src/domain/services/cost.ts` | `calculateServiceCost()`, `buildCostBreakdown()` |
 | `src/domain/services/cloudformation.ts` | `generateCloudFormationTemplate()` |
+| `src/domain/services/terraform-export.ts` | `generateTerraformTemplate()` — HCL com provider, variables, locals, outputs |
+| `src/domain/services/cdk-export.ts` | `generateCDKApp()` — TypeScript CDK Stack com app entrypoint |
+| `src/domain/services/well-architected.ts` | `analyzeArchitecture()` — WAReport com 6 pilares, scores, findings |
 | `src/registry/index.ts` | Entry point público com todos os imports |
 | `src/registry/index-internal.ts` | Registry singleton + `CATEGORY_LABELS/ORDER` |
-| `src/registry/analytics/index.ts` | Redshift, Athena, OpenSearch, Glue, SageMaker |
-| `src/stores/flow-store.ts` | `useFlowStore` + `useTemporalFlowStore` |
+| `src/registry/analytics/index.ts` | Redshift, Athena, OpenSearch, Glue, SageMaker, **Bedrock** |
+| `src/registry/integration/index.ts` | Step Functions, Glue Workflow, AppSync, CodePipeline, X-Ray, **SFN Express** |
+| `src/registry/messaging/index.ts` | SQS, SNS, Kinesis, MSK, EventBridge, SES, **EventBridge Pipes** |
+| `src/stores/flow-store.ts` | `useFlowStore` + `useTemporalFlowStore` + `selectAllNodes()` |
 | `src/components/canvas/FlowCanvas.tsx` | Canvas + onboarding + multi-select toolbar + context menu |
 | `src/components/canvas/NodeContextMenu.tsx` | Menu de contexto + `SERVICE_PRESETS` |
 | `src/components/edges/ProtocolEdge.tsx` | Renderização de edges + inline label editor |
 | `src/components/views/CostDashboard.tsx` | Dashboard de custos + alerta de orçamento |
-| `src/lib/templates.ts` | 6 templates de arquitetura pré-prontos |
+| `src/components/panels/WellArchitectedPanel.tsx` | Análise Well-Architected com score circles e findings |
+| `src/components/panels/ComparisonPanel.tsx` | Diff de snapshots — nós/edges adicionados/removidos |
+| `src/components/onboarding/OnboardingTour.tsx` | Tour guiado de 5 passos para novos usuários |
+| `src/lib/templates.ts` | 10 templates de arquitetura pré-prontos |
 
 ## Componentes de Nó
 
@@ -155,6 +185,7 @@ FlowCanvas mapeia `node.data.type === "note"` para `type: "note-node"` automatic
 // vpc      → violet
 // subnet   → blue
 // security-group → slate
+// region   → indigo  (container de múltiplas AZs/regiões)
 ```
 
 ## Canvas — Funcionalidades
@@ -165,12 +196,33 @@ Quando não há nós, um painel animado (framer-motion) é exibido com botões p
 - Abrir o diálogo de templates
 - Importar JSON
 
+Além disso, ao abrir o editor pela primeira vez, `OnboardingTour` exibe um tour guiado de 5 passos (800ms de delay inicial). Estado persistido em `ui-store.onboardingCompleted`.
+
 ### Multi-select e Bulk Actions
 - `Shift+clique` ou arrastar seleção seleciona múltiplos nós
 - Quando ≥2 nós estão selecionados, uma floating toolbar aparece com:
   - **Duplicar tudo** — `duplicateNode` para cada id selecionado
   - **Deletar tudo** — `removeNode` para cada id selecionado
 - `multiSelectionKeyCode="Shift"`, `selectionOnDrag={true}` configurados no `<ReactFlow>`
+
+### Atalhos de Teclado (use-keyboard-shortcuts.ts)
+
+| Atalho | Ação |
+|--------|------|
+| `Ctrl/Cmd+Z` | Desfazer |
+| `Ctrl/Cmd+Y` / `Ctrl+Shift+Z` | Refazer |
+| `Ctrl/Cmd+D` | Duplicar nó selecionado |
+| `Ctrl/Cmd+C` / `Ctrl/Cmd+V` | Copiar/colar nó |
+| `Ctrl/Cmd+A` | Selecionar todos os nós (`selectAllNodes()`) |
+| `Ctrl/Cmd+Shift+L` | Auto-layout (`requestAutoLayout()`) |
+| `F2` | Renomear nó selecionado |
+| `Escape` | Limpar seleção |
+| `?` | Abrir modal de atalhos |
+
+Todos os atalhos são inibidos quando o foco está em `INPUT`, `TEXTAREA` ou elemento `contentEditable`.
+
+### Compartilhamento por URL
+O Navbar tem botão `Share2` que serializa o projeto como `btoa(encodeURIComponent(JSON.stringify(data)))` e o coloca no hash da URL — copiado para o clipboard. `HashImporter` em `editor/page.tsx` lê o hash no carregamento e importa automaticamente.
 
 ### Background Grid
 ```typescript
@@ -244,24 +296,68 @@ Exibe barra de progresso + mensagem com valor excedido se aplicável.
 
 ## Landing Page (`/`)
 
-`src/app/page.tsx` — página estática com:
-- Hero animado (framer-motion `fadeUp` com `custom` delay)
-- Pills de serviços AWS
-- Grid de 6 feature cards (whileInView)
-- Seção de atalhos de teclado
-- CTA + footer
+`src/app/page.tsx` — página totalmente reimaginada com:
+- **Hero**: badge animado, headline com gradiente `animate-gradient-x`, 3 CTAs
+- **Terminal preview**: dark card com linhas aparecendo em stagger (stats de latência, custo, disponibilidade)
+- **Stats bar**: 60+ Serviços, 10 Templates, 7 Formatos de Export, 100% no Browser
+- **Layer showcase**: 4 cards gradiente para L1–L4 com hover scale
+- **Feature grid**: 6 cards 2-col com `hover:scale-[1.01]`
+- **Export formats**: 7 badges/pills (JSON, PNG, SVG, CloudFormation, Terraform, CDK, K8s YAML)
+- **Keyboard shortcuts**: grid 2-col com 8 atalhos e link "Ver todos"
+- **CTA** + footer com versão e tech stack
 
 ```typescript
 // Tipagem correta para ease cubic-bezier no framer-motion v12:
 ease: [0.16, 1, 0.3, 1] as [number, number, number, number]
 ```
 
+## Comparison Mode
+
+`comparisonModeActive` no `ui-store` ativa o `ComparisonPanel` (slide-in direita):
+- Lista snapshots do `history-store`
+- Ao selecionar um snapshot, exibe diff: nós adicionados (verde) / removidos (vermelho), edges adicionados / removidos
+- Botão "Sair do modo comparação" chama `toggleComparisonMode()`
+- Botão `GitCompare` no Navbar ativa/desativa
+
+## Well-Architected Panel
+
+`WellArchitectedPanel` analisa o diagrama atual contra os 6 pilares AWS Well-Architected Framework:
+
+| Pilar | O que verifica |
+|-------|---------------|
+| Operational Excellence | CloudWatch, X-Ray, CloudTrail, CodePipeline |
+| Security | WAF, Security Groups, Cognito/IAM, KMS/Secrets Manager |
+| Reliability | Multi-AZ RDS, ElastiCache, SQS/SNS, ALB/NLB |
+| Performance | CloudFront, ElastiCache, Lambda/Fargate, API Gateway |
+| Cost | Lambda serverless, Fargate vs EC2, DynamoDB on-demand |
+| Sustainability | Managed services, Graviton, EFS |
+
+Cada pilar tem `score` (0–100), lista de `WAFinding` com severity (`critical`/`high`/`medium`/`low`) e descrição. `"Gerar Relatório"` exporta o `WAReport` como JSON.
+
+## Terraform Export
+
+`generateTerraformTemplate(nodes, edges, projectName)` gera HCL completo:
+- `terraform {}` com `required_version >= 1.5.0` e provider `hashicorp/aws ~> 5.0`
+- `variable "aws_region"` e `variable "project_name"` com defaults
+- `locals { project = var.project_name }` — usado como prefixo em resource names
+- Recursos mapeados: Lambda → `aws_lambda_function`, EC2 → `aws_instance`, RDS → `aws_db_instance`, S3 → `aws_s3_bucket` + `aws_s3_bucket_versioning`, etc.
+- `output` blocks para ARNs de Lambda, endpoint de RDS, bucket name de S3, DNS de ALB
+
+## CDK Export
+
+`generateCDKApp(nodes, edges, projectName)` gera TypeScript CDK completo:
+- Comentário `cdk.json` no topo com instruções de instalação
+- Imports dinâmicos baseados nos serviços presentes no diagrama
+- Stack class com props completos (timeout, memorySize, removalPolicy, versioned, billingMode, etc.)
+- App entrypoint no final com `CDK_DEFAULT_ACCOUNT`/`CDK_DEFAULT_REGION`
+- `app.synth()` incluído
+
 ## Regras de Qualidade
 
 - **DO**: Usar `cn()` de `@/lib/utils` para classes condicionais
 - **DO**: Usar `formatUSD/formatLatency/formatThroughput` de `@/lib/formatters`
 - **DO**: Rodar `npm run build` após cada mudança significativa
-- **DO**: Manter `95 tests passing` — adicionar testes para nova lógica de domínio
+- **DO**: Manter `144 tests passing` — adicionar testes para nova lógica de domínio
 - **DO**: Em JSX, escapar aspas com `{'"'}` (não usar `&ldquo;`/`&rdquo;` — incompatível com algumas versões do ESLint)
 - **DON'T**: Importar React em `src/domain/`
 - **DON'T**: Usar `any` — usar unions discriminadas ou `unknown` com cast
@@ -313,33 +409,47 @@ src/
 │   │   ├── FlowCanvas.tsx       # Canvas + onboarding + multi-select
 │   │   └── NodeContextMenu.tsx  # Menu de contexto + presets de config
 │   ├── dialogs/
-│   │   ├── TemplatesDialog.tsx  # 6 templates pré-prontos
-│   │   └── CommandPalette.tsx   # Paleta de comandos (Cmd+K)
+│   │   ├── TemplatesDialog.tsx  # Templates pré-prontos + aba "Meus Templates"
+│   │   ├── CommandPalette.tsx   # Paleta de comandos (Cmd+K) + recentes
+│   │   ├── KeyboardShortcutsModal.tsx  # Modal de atalhos (tecla ?)
+│   │   └── SaveTemplateDialog.tsx     # Salvar diagrama como template
 │   ├── edges/
 │   │   └── ProtocolEdge.tsx     # Edge renderer + inline label editor
+│   ├── onboarding/
+│   │   └── OnboardingTour.tsx   # Tour guiado 5 passos para novos usuários
 │   ├── panels/
-│   │   ├── PropertiesPanel.tsx
+│   │   ├── PropertiesPanel.tsx  # Docked (split) ou floating, com DockButton
 │   │   ├── SimulationPanel.tsx
 │   │   ├── ValidationPanel.tsx  # Erros/avisos em tempo real
 │   │   ├── WhatIfPanel.tsx      # Análise de custo what-if (auto-discovery)
-│   │   └── HistoryPanel.tsx     # Snapshots com diff badges
+│   │   ├── HistoryPanel.tsx     # Snapshots com diff badges
+│   │   ├── WellArchitectedPanel.tsx  # 6 pilares WAF com score circles
+│   │   └── ComparisonPanel.tsx  # Diff de snapshots (nós/edges +/-)
 │   ├── views/
 │   │   └── CostDashboard.tsx    # Dashboard L3 + alerta de orçamento
 │   ├── nodes/base/
-│   │   ├── ServiceNode.tsx      # Nó universal AWS
+│   │   ├── ServiceNode.tsx      # Nó universal AWS + handles L/R + tooltip
 │   │   ├── NoteNode.tsx         # Sticky note colorida
-│   │   └── ContainerNode.tsx    # VPC/Subnet — accent bar + children count
+│   │   └── ContainerNode.tsx    # VPC/Subnet/Region — accent bar + badge
 │   └── layout/
-│       ├── Navbar.tsx           # Todos os botões de ação
-│       ├── Sidebar.tsx          # Paleta de serviços
+│       ├── Navbar.tsx           # Export (7 formatos), Share, WA, Comparison, Help
+│       ├── Sidebar.tsx          # Paleta + click-to-add + resize + categorias persistidas
 │       └── LayerSwitcher.tsx
 ├── domain/                      # ZERO imports de React/Next.js
 │   ├── entities/
 │   ├── services/
+│   │   ├── cloudformation.ts
+│   │   ├── terraform-export.ts  # HCL com provider, vars, locals, outputs
+│   │   ├── cdk-export.ts        # TypeScript CDK Stack + app entrypoint
+│   │   ├── well-architected.ts  # WAReport — 6 pilares, scores, findings
+│   │   ├── k8s-export.ts
+│   │   ├── cost.ts
+│   │   ├── simulation-engine.ts
+│   │   └── __tests__/           # 11 arquivos de teste, 144 testes
 │   ├── validators/
 │   └── constants/
 ├── hooks/
-│   ├── use-keyboard-shortcuts.ts
+│   ├── use-keyboard-shortcuts.ts  # 9 atalhos implementados
 │   └── use-auto-layout.ts
 ├── lib/
 │   ├── utils.ts
@@ -348,18 +458,19 @@ src/
 ├── registry/
 │   ├── compute/                 # ec2, ecs, eks, lambda, fargate, ecr
 │   ├── networking/
-│   ├── messaging/               # sqs, sns, kinesis, msk, eventbridge, ses
+│   ├── messaging/               # sqs, sns, kinesis, msk, eventbridge, ses, eventbridge-pipes
 │   ├── storage/
 │   ├── security/                # waf, shield, kms, secrets-manager, cognito, iam, cloudtrail
-│   ├── integration/             # step-functions, glue-workflow, app-sync, codepipeline, xray
-│   ├── analytics/               # redshift, athena, opensearch, glue, sagemaker  ← NOVO
-│   ├── annotations/
+│   ├── integration/             # step-functions, glue-workflow, app-sync, codepipeline, xray, sfn-express
+│   ├── analytics/               # redshift, athena, opensearch, glue, sagemaker, bedrock
+│   ├── annotations/             # note, region (container)
 │   ├── index.ts                 # Entry point com todos os imports
 │   ├── index-internal.ts        # Singleton + buildPalette() + CATEGORY_LABELS/ORDER
 │   └── types.ts                 # ServiceDefinition, ConfigField, NumberField
 └── stores/
-    ├── flow-store.ts            # useFlowStore + useTemporalFlowStore
-    ├── ui-store.ts              # Todos os painéis UI + templatesDialogOpen
+    ├── flow-store.ts            # useFlowStore + useTemporalFlowStore + selectAllNodes()
+    ├── ui-store.ts              # Todos os painéis, sidebar width, docked mode, comparison
+    ├── user-templates-store.ts  # Templates salvos pelo usuário (persistido)
     ├── validation-store.ts      # Reativo via subscribe
     ├── history-store.ts         # Snapshots persistidos
     └── ...

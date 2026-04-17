@@ -104,6 +104,9 @@ interface FlowState {
   removeEdge: (edgeId: string) => void;
   removeSolutionEdge: (edgeId: string) => void;
 
+  // Selection helpers
+  selectAllNodes: () => void;
+
   // Project
   setProjectName: (name: string) => void;
   exportProject: () => ProjectData;
@@ -240,7 +243,7 @@ export const useFlowStore = create<FlowState>()(
         type: "service-node",
         position,
         data: domainNode,
-        ...(["vpc", "subnet", "security-group"].includes(type)
+        ...(["vpc", "subnet", "security-group", "region"].includes(type)
           ? { type: "container-node" }
           : {}),
       };
@@ -432,6 +435,14 @@ export const useFlowStore = create<FlowState>()(
     removeSolutionEdge: (edgeId) => {
       set((state) => ({
         solutionEdges: state.solutionEdges.filter((e) => e.id !== edgeId),
+      }));
+    },
+
+    // ── Selection helpers ────────────────────────────────────────────────────
+
+    selectAllNodes: () => {
+      set((state) => ({
+        nodes: state.nodes.map((n) => ({ ...n, selected: true })),
       }));
     },
 

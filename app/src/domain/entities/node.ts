@@ -47,8 +47,14 @@ export const AWS_SERVICE_TYPES = [
   "opensearch",
   "glue",
   "sagemaker",
+  "bedrock",
+  // Integration (express)
+  "sfn-express",
+  // Messaging (pipes)
+  "eventbridge-pipes",
   // Annotations
   "note",
+  "region",
 ] as const;
 
 export type AWSServiceType = (typeof AWS_SERVICE_TYPES)[number];
@@ -306,9 +312,32 @@ export interface SageMakerConfig {
   endpointEnabled: boolean;
 }
 
+export interface BedrockConfig {
+  modelId: string;
+  requestsPerMonth: number;
+  inputTokensPerRequest: number;
+  outputTokensPerRequest: number;
+}
+
+export interface SFNExpressConfig {
+  executionsPerMonth: number;
+  avgDurationSec: number;
+  memoryMB: number;
+}
+
+export interface EventBridgePipesConfig {
+  eventsPerMonth: number;
+  filterRatio: number;
+}
+
 export interface NoteConfig {
   content: string;
   color: "yellow" | "blue" | "green" | "pink" | "purple";
+}
+
+export interface RegionConfig {
+  regionCode: string; // e.g. "us-east-1"
+  regionName: string; // e.g. "US East (N. Virginia)"
 }
 
 // ─── Service Config Map ──────────────────────────────────────────────────────
@@ -353,7 +382,11 @@ export interface ServiceConfigMap {
   opensearch: OpenSearchConfig;
   glue: GlueConfig;
   sagemaker: SageMakerConfig;
+  bedrock: BedrockConfig;
+  "sfn-express": SFNExpressConfig;
+  "eventbridge-pipes": EventBridgePipesConfig;
   note: NoteConfig;
+  region: RegionConfig;
 }
 
 // ─── Architecture Node ───────────────────────────────────────────────────────
@@ -377,7 +410,7 @@ export type ArchitectureNode<T extends AWSServiceType = AWSServiceType> =
 
 // ─── Container node types (can hold children) ───────────────────────────────
 
-export const CONTAINER_NODE_TYPES: AWSServiceType[] = ["vpc", "subnet"];
+export const CONTAINER_NODE_TYPES: AWSServiceType[] = ["vpc", "subnet", "region"];
 
 export function isContainerNode(type: AWSServiceType): boolean {
   return CONTAINER_NODE_TYPES.includes(type);
@@ -425,5 +458,9 @@ export const SERVICE_CATEGORY_MAP: Record<AWSServiceType, NodeCategory> = {
   opensearch: "analytics",
   glue: "analytics",
   sagemaker: "analytics",
+  bedrock: "analytics",
+  "sfn-express": "integration",
+  "eventbridge-pipes": "messaging",
   note: "annotations",
+  region: "annotations",
 };
