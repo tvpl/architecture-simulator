@@ -27,11 +27,6 @@ const SEVERITY_COLOR: Record<SuggestionSeverity, string> = {
   improvement: "text-emerald-500",
 };
 
-const SEVERITY_BORDER: Record<SuggestionSeverity, string> = {
-  tip: "border-blue-500/30",
-  warning: "border-amber-500/30",
-  improvement: "border-emerald-500/30",
-};
 
 const SEVERITY_BG: Record<SuggestionSeverity, string> = {
   tip: "bg-blue-500/5",

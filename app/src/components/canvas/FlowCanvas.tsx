@@ -17,7 +17,7 @@ import {
 import "@xyflow/react/dist/style.css";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { LayoutTemplate, Upload, MousePointer2, Command, Trash2, Copy } from "lucide-react";
+import { LayoutTemplate, Upload, MousePointer2, Trash2, Copy } from "lucide-react";
 import { useFlowStore, type FlowNode, type FlowEdge, type AppFlowNode, selectInfraHostOptions } from "@/stores/flow-store";
 import { useSelectionStore } from "@/stores/selection-store";
 import { useUIStore } from "@/stores/ui-store";

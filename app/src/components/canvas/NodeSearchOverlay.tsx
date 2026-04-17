@@ -27,10 +27,12 @@ export function NodeSearchOverlay() {
         (e.target as HTMLElement).isContentEditable;
 
       if ((e.metaKey || e.ctrlKey) && e.key === "f") {
-        // Allow default browser find only if we are not taking over
         e.preventDefault();
         if (!isEditable) {
-          setOpen((prev) => !prev);
+          setOpen((prev) => {
+            if (!prev) setQuery(""); // reset query when opening
+            return !prev;
+          });
         }
         return;
       }
@@ -47,7 +49,6 @@ export function NodeSearchOverlay() {
   // Focus input when opened
   useEffect(() => {
     if (open) {
-      setQuery("");
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [open]);

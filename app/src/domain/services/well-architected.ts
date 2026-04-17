@@ -528,7 +528,7 @@ function analyzeSustainability(nodes: ArchitectureNode[]): {
 
 export function analyzeArchitecture(
   nodes: ArchitectureNode[],
-  _edges: ConnectionEdge[]
+  edges: ConnectionEdge[]  // eslint-disable-line @typescript-eslint/no-unused-vars
 ): WAReport {
   const pillarOrder: WAPillar[] = [
     "operational-excellence",

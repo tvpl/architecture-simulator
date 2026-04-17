@@ -8,8 +8,8 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, Layers, Boxes, DollarSign, Play, LayoutTemplate, History,
-  ShieldAlert, Calculator, Download, LayoutGrid, Grid3x3, Moon, Sun,
-  Presentation, Cpu, FileCode2, ImageDown, Link, Trash2, RotateCcw,
+  ShieldAlert, Calculator, LayoutGrid, Grid3x3, Moon, Sun,
+  Presentation, Cpu, Trash2,
   Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -23,7 +23,6 @@ import { useSimulationStore } from "@/stores/simulation-store";
 import { registry } from "@/registry";
 import { ServiceIcon } from "@/components/nodes/base/ServiceIcon";
 import { toast } from "sonner";
-import type { LayerType } from "@/domain/entities/layer";
 
 // ── Command definition ────────────────────────────────────────────────────────
 
@@ -64,11 +63,10 @@ export function CommandPalette() {
 
   const { setActiveLayer } = useLayerStore();
   const activeLayer = useLayerStore((s) => s.activeLayer);
-  const { nodes, solutionNodes, clearCanvas } = useFlowStore();
+  const { nodes, clearCanvas } = useFlowStore();
   const {
     toggleValidationPanel, toggleWhatIfPanel, requestAutoLayout,
     toggleSnapToGrid, togglePresentationMode, openSimulationPanel,
-    openPropertiesPanel,
   } = useUIStore();
   const { theme, toggleTheme } = useThemeStore();
   const { toggleHistoryPanel } = useHistoryStore();

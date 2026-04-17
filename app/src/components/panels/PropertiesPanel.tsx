@@ -25,13 +25,30 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { ServiceIcon } from "@/components/nodes/base/ServiceIcon";
 
+// Module-level component — must live outside PropertiesPanel to avoid react-hooks/static-components
+function DockButton() {
+  const propertiesPanelDocked = useUIStore((s) => s.propertiesPanelDocked);
+  const togglePropertiesPanelDocked = useUIStore((s) => s.togglePropertiesPanelDocked);
+  return (
+    <button
+      onClick={togglePropertiesPanelDocked}
+      title={propertiesPanelDocked ? "Destacar painel" : "Ancorar painel"}
+      className="p-1 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+    >
+      {propertiesPanelDocked
+        ? <PanelRightOpen className="w-3.5 h-3.5" />
+        : <PanelRightClose className="w-3.5 h-3.5" />}
+    </button>
+  );
+}
+
 interface PropertiesPanelProps {
   /** When true, renders as a docked split panel (no absolute positioning, no animation wrapper) */
   docked?: boolean;
 }
 
 export function PropertiesPanel({ docked = false }: PropertiesPanelProps) {
-  const { propertiesPanelOpen, closePropertiesPanel, propertiesPanelDocked, togglePropertiesPanelDocked } = useUIStore();
+  const { propertiesPanelOpen, closePropertiesPanel, togglePropertiesPanelDocked } = useUIStore();
   const { selectedNodeId, selectedEdgeId } = useSelectionStore();
   const {
     nodes, edges, updateNodeData, updateNodeConfig, updateEdgeData,
@@ -49,19 +66,6 @@ export function PropertiesPanel({ docked = false }: PropertiesPanelProps) {
   const isL2Edge = selectedEdgeId
     ? solutionEdges.some((e) => e.id === selectedEdgeId)
     : false;
-
-  // Dock/undock toggle button
-  const DockButton = () => (
-    <button
-      onClick={togglePropertiesPanelDocked}
-      title={propertiesPanelDocked ? "Destacar painel" : "Ancorar painel"}
-      className="p-1 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-    >
-      {propertiesPanelDocked
-        ? <PanelRightOpen className="w-3.5 h-3.5" />
-        : <PanelRightClose className="w-3.5 h-3.5" />}
-    </button>
-  );
 
   const panelContent = isVisible ? (
     <div className={cn(

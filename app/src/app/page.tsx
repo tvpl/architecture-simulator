@@ -10,7 +10,7 @@ import {
   Cpu, Play, LayoutTemplate, DollarSign, ShieldCheck,
   GitBranch, Layers, ArrowRight, Cloud, Zap, Database,
   BarChart3, Command, Box, Globe, Globe2, Server, Activity,
-  FileJson, Image, Code2, Package, Blocks, CheckCircle2,
+  FileJson, Image as ImageIcon, Code2, Package, Blocks, CheckCircle2,
 } from "lucide-react";
 
 // ── Animation helpers ─────────────────────────────────────────────────────────
@@ -166,7 +166,7 @@ const FEATURES = [
 
 const EXPORT_FORMATS = [
   { icon: <FileJson className="w-3.5 h-3.5" />, label: "JSON", color: "text-yellow-600 bg-yellow-500/10 border-yellow-500/20" },
-  { icon: <Image className="w-3.5 h-3.5" />, label: "PNG", color: "text-blue-600 bg-blue-500/10 border-blue-500/20" },
+  { icon: <ImageIcon className="w-3.5 h-3.5" />, label: "PNG", color: "text-blue-600 bg-blue-500/10 border-blue-500/20" },
   { icon: <Code2 className="w-3.5 h-3.5" />, label: "SVG", color: "text-indigo-600 bg-indigo-500/10 border-indigo-500/20" },
   { icon: <GitBranch className="w-3.5 h-3.5" />, label: "CloudFormation", color: "text-orange-600 bg-orange-500/10 border-orange-500/20" },
   { icon: <Package className="w-3.5 h-3.5" />, label: "Terraform", color: "text-violet-600 bg-violet-500/10 border-violet-500/20" },

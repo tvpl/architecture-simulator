@@ -38,11 +38,9 @@ function borderToAccentBg(borderColor: string): string {
 const ServiceNode = memo(function ServiceNode({ data, selected }: NodeProps<FlowNode>) {
   const activeLayer = useLayerStore((s) => s.activeLayer);
   const selectNode = useSelectionStore((s) => s.selectNode);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const hasError = useValidationStore(
     useMemo(() => (s: { errorNodeIds: string[] }) => s.errorNodeIds.includes(data.id), [data.id])
   );
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const hasWarning = useValidationStore(
     useMemo(() => (s: { warningNodeIds: string[] }) => s.warningNodeIds.includes(data.id), [data.id])
   );

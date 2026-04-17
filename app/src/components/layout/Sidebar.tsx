@@ -110,35 +110,6 @@ export function Sidebar() {
     [isInfraLayer]
   );
 
-  if (activeLayer === "cost" || activeLayer === "simulation") {
-    return null;
-  }
-
-  const palette = isInfraLayer
-    ? registry.buildPalette()
-    : appComponentRegistry.buildPalette();
-
-  const filteredPalette = search.trim()
-    ? palette
-        .map((cat) => ({
-          ...cat,
-          services: cat.services.filter(
-            (s) =>
-              s.label.toLowerCase().includes(search.toLowerCase()) ||
-              s.description.toLowerCase().includes(search.toLowerCase())
-          ),
-        }))
-        .filter((c) => c.services.length > 0)
-    : palette;
-
-  const toggleCategory = (id: string) => {
-    toggleExpandedCategory(id);
-  };
-
-  const totalCount = isInfraLayer
-    ? registry.getAll().length
-    : appComponentRegistry.getAll().length;
-
   // ── Click-to-add handler for L1 ─────────────────────────────────────────────
   const handleAddInfraService = useCallback((type: AWSServiceType) => {
     useFlowStore.getState().addNode(type, {
@@ -171,6 +142,35 @@ export function Sidebar() {
     },
     [isInfraLayer, handleAddInfraService, handleAddAppComponent]
   );
+
+  if (activeLayer === "cost" || activeLayer === "simulation") {
+    return null;
+  }
+
+  const palette = isInfraLayer
+    ? registry.buildPalette()
+    : appComponentRegistry.buildPalette();
+
+  const filteredPalette = search.trim()
+    ? palette
+        .map((cat) => ({
+          ...cat,
+          services: cat.services.filter(
+            (s) =>
+              s.label.toLowerCase().includes(search.toLowerCase()) ||
+              s.description.toLowerCase().includes(search.toLowerCase())
+          ),
+        }))
+        .filter((c) => c.services.length > 0)
+    : palette;
+
+  const toggleCategory = (id: string) => {
+    toggleExpandedCategory(id);
+  };
+
+  const totalCount = isInfraLayer
+    ? registry.getAll().length
+    : appComponentRegistry.getAll().length;
 
   return (
     <TooltipProvider delayDuration={300}>
