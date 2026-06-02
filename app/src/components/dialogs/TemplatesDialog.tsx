@@ -56,17 +56,20 @@ export function TemplatesDialog({ open, onClose }: TemplatesDialogProps) {
       ? ARCHITECTURE_TEMPLATES
       : ARCHITECTURE_TEMPLATES.filter((t) => t.category === activeCategory);
 
-  const handleLoad = (template: ArchitectureTemplate) => {
-    importProject(template.data);
-    toast.success(`Template "${template.name}" carregado!`);
-    onClose();
+  const loadTemplate = (name: string, data: Parameters<typeof importProject>[0]) => {
+    try {
+      importProject(data);
+      toast.success(`Template "${name}" carregado!`);
+      onClose();
+    } catch {
+      toast.error(`Não foi possível carregar o template "${name}".`);
+    }
   };
 
-  const handleLoadUser = (template: UserTemplate) => {
-    importProject(template.data);
-    toast.success(`Template "${template.name}" carregado!`);
-    onClose();
-  };
+  const handleLoad = (template: ArchitectureTemplate) => loadTemplate(template.name, template.data);
+
+  const handleLoadUser = (template: UserTemplate) =>
+    loadTemplate(template.name, template.data as Parameters<typeof importProject>[0]);
 
   const handleDeleteUser = (e: React.MouseEvent, id: string, name: string) => {
     e.stopPropagation();

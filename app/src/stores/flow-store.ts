@@ -30,6 +30,7 @@ import { SERVICE_DEFAULTS } from "@/domain/constants/defaults";
 import { APP_COMPONENT_DEFAULTS } from "@/domain/constants/app-defaults";
 import { PROTOCOL_INFO } from "@/domain/entities/edge";
 import { canHostAppComponent } from "@/domain/entities/app-component";
+import { z } from "zod";
 
 // ── React Flow node/edge wrappers ────────────────────────────────────────────
 
@@ -64,17 +65,52 @@ interface ProjectDataV2 {
 
 // ── Import/persistence guards ───────────────────────────────────────────────
 // Imported JSON (file upload, shared URL) and rehydrated localStorage are
-// untrusted: a malformed payload must never corrupt the store. These helpers
-// coerce unknown values into safe defaults instead of relying on casts.
+// untrusted: a malformed payload must never corrupt the store or crash the
+// canvas. These Zod schemas validate the minimal structure React Flow needs and
+// drop individual malformed items instead of rejecting the whole project.
 
 const DEFAULT_PROJECT_NAME = "Minha Arquitetura";
 
-function asArray<T>(value: unknown): T[] {
-  return Array.isArray(value) ? (value as T[]) : [];
+const flowNodeSchema = z
+  .object({
+    id: z.string().min(1),
+    position: z.object({ x: z.number().finite(), y: z.number().finite() }),
+    data: z.object({}).passthrough(),
+  })
+  .passthrough();
+
+const flowEdgeSchema = z
+  .object({
+    id: z.string().min(1),
+    source: z.string().min(1),
+    target: z.string().min(1),
+  })
+  .passthrough();
+
+/** Keep only the array items that satisfy `schema`; anything else is dropped. */
+function parseItems<T>(value: unknown, schema: z.ZodTypeAny): T[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item) => schema.safeParse(item).success) as T[];
 }
+
+const parseFlowNodes = (v: unknown) => parseItems<FlowNode>(v, flowNodeSchema);
+const parseAppNodes = (v: unknown) => parseItems<AppFlowNode>(v, flowNodeSchema);
+const parseFlowEdges = (v: unknown) => parseItems<FlowEdge>(v, flowEdgeSchema);
 
 function asName(value: unknown): string {
   return typeof value === "string" && value.trim() ? value : DEFAULT_PROJECT_NAME;
+}
+
+/** Coerce any persisted/imported blob into a valid, fully-formed canvas slice. */
+function sanitizeProjectState(value: unknown) {
+  const s = (value && typeof value === "object" ? value : {}) as Record<string, unknown>;
+  return {
+    nodes: parseFlowNodes(s.nodes),
+    edges: parseFlowEdges(s.edges),
+    solutionNodes: parseAppNodes(s.solutionNodes),
+    solutionEdges: parseFlowEdges(s.solutionEdges),
+    projectName: asName(s.projectName),
+  };
 }
 
 // ── Store shape ───────────────────────────────────────────────────────────────
@@ -499,8 +535,8 @@ export const useFlowStore = create<FlowState>()(
         // V2 (legacy) — all nodes/edges live on the infrastructure layer
         const v2 = data as Partial<ProjectDataV2>;
         set({
-          nodes: asArray<FlowNode>(v2.nodes),
-          edges: asArray<FlowEdge>(v2.edges),
+          nodes: parseFlowNodes(v2.nodes),
+          edges: parseFlowEdges(v2.edges),
           solutionNodes: [],
           solutionEdges: [],
           projectName: asName(v2.name),
@@ -508,10 +544,10 @@ export const useFlowStore = create<FlowState>()(
       } else {
         const v3 = data as Partial<ProjectData>;
         set({
-          nodes: asArray<FlowNode>(v3.infrastructure?.nodes),
-          edges: asArray<FlowEdge>(v3.infrastructure?.edges),
-          solutionNodes: asArray<AppFlowNode>(v3.solutionDesign?.nodes),
-          solutionEdges: asArray<FlowEdge>(v3.solutionDesign?.edges),
+          nodes: parseFlowNodes(v3.infrastructure?.nodes),
+          edges: parseFlowEdges(v3.infrastructure?.edges),
+          solutionNodes: parseAppNodes(v3.solutionDesign?.nodes),
+          solutionEdges: parseFlowEdges(v3.solutionDesign?.edges),
           projectName: asName(v3.name),
         });
       }
@@ -530,21 +566,16 @@ export const useFlowStore = create<FlowState>()(
             solutionEdges: state.solutionEdges,
             projectName: state.projectName,
           }),
-          // Migrate from v2 to v3 on first load. Always return a fully-formed,
-          // valid shape so corrupt localStorage can never poison the store.
-          migrate: (persisted: unknown) => {
-            const state =
-              persisted && typeof persisted === "object"
-                ? (persisted as Record<string, unknown>)
-                : {};
-            return {
-              nodes: asArray<FlowNode>(state.nodes),
-              edges: asArray<FlowEdge>(state.edges),
-              solutionNodes: asArray<AppFlowNode>(state.solutionNodes),
-              solutionEdges: asArray<FlowEdge>(state.solutionEdges),
-              projectName: asName(state.projectName),
-            };
-          },
+          // Runs only on a version bump (V2→V3). Rebuild into a valid shape.
+          migrate: (persisted: unknown) => sanitizeProjectState(persisted),
+          // Runs on EVERY rehydration regardless of version — this is what
+          // guards an already-v3 store whose localStorage got corrupted
+          // (e.g. nodes truncated to a non-array). Without it, migrate is
+          // skipped when versions match and the bad blob reaches the canvas.
+          merge: (persisted, current) => ({
+            ...current,
+            ...sanitizeProjectState(persisted),
+          }),
           version: 3,
         }
       )

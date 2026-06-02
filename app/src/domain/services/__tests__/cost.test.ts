@@ -159,6 +159,16 @@ describe("calculateServiceCost — malformed config guard", () => {
     result.lineItems.forEach((li) => expect(Number.isFinite(li.amount)).toBe(true));
   });
 
+  it("coerces a NaN-producing (but non-throwing) config to 0 via sanitize", () => {
+    // requestsPerMonth is valid so the details string does not throw; memoryMB
+    // is NaN so the cost math yields NaN — this exercises sanitizeCost itself,
+    // not the try/catch fallback.
+    const node = makeLambdaNode({ memoryMB: NaN });
+    const result = calculateServiceCost(node);
+    expect(Number.isFinite(result.monthlyCostUSD)).toBe(true);
+    result.lineItems.forEach((li) => expect(Number.isFinite(li.amount)).toBe(true));
+  });
+
   it("buildCostBreakdown stays finite with a malformed node", () => {
     const broken = {
       id: "sfn-1",

@@ -23,7 +23,7 @@ function sanitizeCost(result: ServiceCostResult): ServiceCostResult {
   return {
     ...result,
     monthlyCostUSD: safe(result.monthlyCostUSD),
-    lineItems: result.lineItems?.map((li) => ({ ...li, amount: safe(li.amount) })),
+    lineItems: (result.lineItems ?? []).map((li) => ({ ...li, amount: safe(li.amount) })),
   };
 }
 

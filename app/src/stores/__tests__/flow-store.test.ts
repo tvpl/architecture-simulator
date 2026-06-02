@@ -242,6 +242,37 @@ describe("importProject — malformed payloads", () => {
       useFlowStore.getState().importProject(null as unknown as ProjectData)
     ).toThrow();
   });
+
+  it("drops individual malformed nodes while keeping valid ones", () => {
+    const valid = {
+      id: "ec2-1",
+      type: "service-node",
+      position: { x: 0, y: 0 },
+      data: { id: "ec2-1", label: "EC2", type: "ec2", category: "compute", config: {} },
+    };
+    const payload = {
+      version: 3,
+      name: "Mixed",
+      infrastructure: {
+        nodes: [
+          valid,
+          { id: "bad-1", data: {} }, // missing position → dropped
+          { position: { x: 1, y: 1 }, data: {} }, // missing id → dropped
+          "garbage", // not an object → dropped
+        ],
+        edges: [
+          { id: "e1", source: "ec2-1", target: "ec2-1" },
+          { id: "e2", source: "ec2-1" }, // missing target → dropped
+        ],
+      },
+      solutionDesign: { nodes: [], edges: [] },
+    };
+
+    useFlowStore.getState().importProject(payload as unknown as ProjectData);
+    const s = useFlowStore.getState();
+    expect(s.nodes.map((n) => n.id)).toEqual(["ec2-1"]);
+    expect(s.edges.map((e) => e.id)).toEqual(["e1"]);
+  });
 });
 
 // ── exportProject / importProject round-trip ──────────────────────────────────
