@@ -138,3 +138,41 @@ describe("buildCostBreakdown", () => {
     expect(sumFromBreakdown).toBeCloseTo(sumFromIndividual, 5);
   });
 });
+
+describe("calculateServiceCost — malformed config guard", () => {
+  it("returns finite cost (0) when config fields are missing/NaN", () => {
+    // Simulates an imported/shared project carrying an incomplete config
+    const broken = {
+      id: "bedrock-1",
+      label: "Broken Bedrock",
+      type: "bedrock",
+      category: "analytics",
+      latencyMs: 50,
+      positionX: 0,
+      positionY: 0,
+      config: {}, // missing inputTokensPerRequest/requestsPerMonth → would be NaN
+    } as unknown as ArchitectureNode;
+
+    const result = calculateServiceCost(broken);
+    expect(Number.isFinite(result.monthlyCostUSD)).toBe(true);
+    expect(result.monthlyCostUSD).toBe(0);
+    result.lineItems.forEach((li) => expect(Number.isFinite(li.amount)).toBe(true));
+  });
+
+  it("buildCostBreakdown stays finite with a malformed node", () => {
+    const broken = {
+      id: "sfn-1",
+      label: "Broken SFN",
+      type: "sfn-express",
+      category: "integration",
+      latencyMs: 50,
+      positionX: 0,
+      positionY: 0,
+      config: {},
+    } as unknown as ArchitectureNode;
+
+    const [item] = buildCostBreakdown([broken]);
+    expect(Number.isFinite(item.monthlyCostUSD)).toBe(true);
+    expect(Number.isFinite(item.percentage)).toBe(true);
+  });
+});

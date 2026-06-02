@@ -191,6 +191,57 @@ describe("removeNode cascade", () => {
     expect(useFlowStore.getState().nodes).toHaveLength(0);
     expect(useFlowStore.getState().solutionNodes).toHaveLength(0);
   });
+
+  it("removing infra node also removes solution edges orphaned by the cascade", () => {
+    const store = useFlowStore.getState();
+    const infraId = store.addNode("eks", { x: 0, y: 0 }, "EKS Cluster");
+    const a = store.addAppComponent("microservice", { x: 10, y: 10 }, infraId, "Svc A");
+    const b = store.addAppComponent("worker", { x: 20, y: 20 }, infraId, "Worker B");
+
+    // Connect the two hosted components
+    store.onSolutionConnect({ source: a, target: b, sourceHandle: null, targetHandle: null });
+    expect(useFlowStore.getState().solutionEdges).toHaveLength(1);
+
+    store.removeNode(infraId);
+
+    // Both nodes and the edge between them must be gone — no orphaned edges
+    expect(useFlowStore.getState().solutionNodes).toHaveLength(0);
+    expect(useFlowStore.getState().solutionEdges).toHaveLength(0);
+  });
+});
+
+// ── import robustness (malformed payloads) ────────────────────────────────────
+
+describe("importProject — malformed payloads", () => {
+  beforeEach(freshStore);
+
+  it("coerces a malformed V2 payload into safe defaults", () => {
+    useFlowStore.getState().importProject(
+      { version: 2, nodes: "oops", edges: null } as unknown as ProjectData
+    );
+    const s = useFlowStore.getState();
+    expect(Array.isArray(s.nodes)).toBe(true);
+    expect(s.nodes).toHaveLength(0);
+    expect(Array.isArray(s.edges)).toBe(true);
+    expect(typeof s.projectName).toBe("string");
+    expect(s.projectName.length).toBeGreaterThan(0);
+  });
+
+  it("handles a V3 payload missing nested layers", () => {
+    useFlowStore.getState().importProject(
+      { version: 3, name: "X", infrastructure: {} } as unknown as ProjectData
+    );
+    const s = useFlowStore.getState();
+    expect(s.nodes).toHaveLength(0);
+    expect(s.solutionNodes).toHaveLength(0);
+    expect(s.projectName).toBe("X");
+  });
+
+  it("throws on non-object data instead of corrupting state", () => {
+    expect(() =>
+      useFlowStore.getState().importProject(null as unknown as ProjectData)
+    ).toThrow();
+  });
 });
 
 // ── exportProject / importProject round-trip ──────────────────────────────────

@@ -62,6 +62,21 @@ interface ProjectDataV2 {
   savedAt: string;
 }
 
+// ── Import/persistence guards ───────────────────────────────────────────────
+// Imported JSON (file upload, shared URL) and rehydrated localStorage are
+// untrusted: a malformed payload must never corrupt the store. These helpers
+// coerce unknown values into safe defaults instead of relying on casts.
+
+const DEFAULT_PROJECT_NAME = "Minha Arquitetura";
+
+function asArray<T>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : [];
+}
+
+function asName(value: unknown): string {
+  return typeof value === "string" && value.trim() ? value : DEFAULT_PROJECT_NAME;
+}
+
 // ── Store shape ───────────────────────────────────────────────────────────────
 
 interface FlowState {
@@ -282,16 +297,28 @@ export const useFlowStore = create<FlowState>()(
     },
 
     removeNode: (nodeId) => {
-      set((state) => ({
-        nodes: state.nodes.filter((n) => n.id !== nodeId),
-        edges: state.edges.filter(
-          (e) => e.source !== nodeId && e.target !== nodeId
-        ),
-        // Also remove any solution design nodes hosted on this infra node
-        solutionNodes: state.solutionNodes.filter(
-          (n) => n.data.hostInfrastructureNodeId !== nodeId
-        ),
-      }));
+      set((state) => {
+        // Ids of solution nodes hosted on the infra node being removed
+        const orphanedAppIds = new Set(
+          state.solutionNodes
+            .filter((n) => n.data.hostInfrastructureNodeId === nodeId)
+            .map((n) => n.id)
+        );
+        return {
+          nodes: state.nodes.filter((n) => n.id !== nodeId),
+          edges: state.edges.filter(
+            (e) => e.source !== nodeId && e.target !== nodeId
+          ),
+          // Also remove any solution design nodes hosted on this infra node…
+          solutionNodes: state.solutionNodes.filter(
+            (n) => n.data.hostInfrastructureNodeId !== nodeId
+          ),
+          // …and any solution edges that referenced those removed nodes
+          solutionEdges: state.solutionEdges.filter(
+            (e) => !orphanedAppIds.has(e.source) && !orphanedAppIds.has(e.target)
+          ),
+        };
+      });
     },
 
     duplicateNode: (nodeId) => {
@@ -465,24 +492,27 @@ export const useFlowStore = create<FlowState>()(
     }),
 
     importProject: (data: ProjectData | ProjectDataV2) => {
+      if (!data || typeof data !== "object") {
+        throw new Error("Projeto inválido: dados ausentes ou em formato incorreto.");
+      }
       if (data.version === 2 || !("infrastructure" in data)) {
-        // V2 migration: all nodes/edges go to infrastructure layer
-        const v2 = data as ProjectDataV2;
+        // V2 (legacy) — all nodes/edges live on the infrastructure layer
+        const v2 = data as Partial<ProjectDataV2>;
         set({
-          nodes: v2.nodes,
-          edges: v2.edges,
+          nodes: asArray<FlowNode>(v2.nodes),
+          edges: asArray<FlowEdge>(v2.edges),
           solutionNodes: [],
           solutionEdges: [],
-          projectName: v2.name,
+          projectName: asName(v2.name),
         });
       } else {
-        const v3 = data as ProjectData;
+        const v3 = data as Partial<ProjectData>;
         set({
-          nodes: v3.infrastructure.nodes,
-          edges: v3.infrastructure.edges,
-          solutionNodes: v3.solutionDesign.nodes,
-          solutionEdges: v3.solutionDesign.edges,
-          projectName: v3.name,
+          nodes: asArray<FlowNode>(v3.infrastructure?.nodes),
+          edges: asArray<FlowEdge>(v3.infrastructure?.edges),
+          solutionNodes: asArray<AppFlowNode>(v3.solutionDesign?.nodes),
+          solutionEdges: asArray<FlowEdge>(v3.solutionDesign?.edges),
+          projectName: asName(v3.name),
         });
       }
     },
@@ -500,18 +530,20 @@ export const useFlowStore = create<FlowState>()(
             solutionEdges: state.solutionEdges,
             projectName: state.projectName,
           }),
-          // Migrate from v2 to v3 on first load
+          // Migrate from v2 to v3 on first load. Always return a fully-formed,
+          // valid shape so corrupt localStorage can never poison the store.
           migrate: (persisted: unknown) => {
-            const state = persisted as Record<string, unknown>;
-            // If we have old v2 data (no solutionNodes), add empty arrays
-            if (state && !("solutionNodes" in state)) {
-              return {
-                ...state,
-                solutionNodes: [],
-                solutionEdges: [],
-              };
-            }
-            return state;
+            const state =
+              persisted && typeof persisted === "object"
+                ? (persisted as Record<string, unknown>)
+                : {};
+            return {
+              nodes: asArray<FlowNode>(state.nodes),
+              edges: asArray<FlowEdge>(state.edges),
+              solutionNodes: asArray<AppFlowNode>(state.solutionNodes),
+              solutionEdges: asArray<FlowEdge>(state.solutionEdges),
+              projectName: asName(state.projectName),
+            };
           },
           version: 3,
         }

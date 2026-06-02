@@ -13,7 +13,33 @@ export interface ServiceCostResult {
   lineItems: { label: string; amount: number }[];
 }
 
+/**
+ * Coerce a cost result into finite numbers. Configs created normally always
+ * have defaults, but imported/shared projects may carry malformed configs that
+ * produce NaN/Infinity — this keeps those from poisoning totals and the UI.
+ */
+function sanitizeCost(result: ServiceCostResult): ServiceCostResult {
+  const safe = (n: number) => (Number.isFinite(n) ? n : 0);
+  return {
+    ...result,
+    monthlyCostUSD: safe(result.monthlyCostUSD),
+    lineItems: result.lineItems?.map((li) => ({ ...li, amount: safe(li.amount) })),
+  };
+}
+
 export function calculateServiceCost(
+  node: ArchitectureNode
+): ServiceCostResult {
+  try {
+    return sanitizeCost(computeServiceCost(node));
+  } catch {
+    // Malformed/incomplete config (e.g. from an imported project) — never let a
+    // single bad node crash the cost dashboard or the totals.
+    return { monthlyCostUSD: 0, details: "Configuração inválida", lineItems: [] };
+  }
+}
+
+function computeServiceCost(
   node: ArchitectureNode
 ): ServiceCostResult {
   switch (node.type) {
@@ -221,7 +247,7 @@ export function estimateAppComponentCost(
 
   const total = cpuCost + memCost + logCost;
 
-  return {
+  return sanitizeCost({
     monthlyCostUSD: total,
     details: `${replicas} réplica(s), ${cpuStr} CPU, ${memStr} memória`,
     lineItems: [
@@ -229,7 +255,7 @@ export function estimateAppComponentCost(
       { label: "Memória (estimado)", amount: memCost },
       { label: "Logs (estimado)", amount: logCost },
     ],
-  };
+  });
 }
 
 export function buildCostBreakdown(

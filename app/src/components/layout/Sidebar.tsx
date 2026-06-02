@@ -62,7 +62,16 @@ export function Sidebar() {
     setSidebarWidth,
     expandedCategories,
     toggleExpandedCategory,
-  } = useUIStore();
+  } = useUIStore(
+    useShallow((s) => ({
+      sidebarCollapsed: s.sidebarCollapsed,
+      toggleSidebar: s.toggleSidebar,
+      sidebarWidth: s.sidebarWidth,
+      setSidebarWidth: s.setSidebarWidth,
+      expandedCategories: s.expandedCategories,
+      toggleExpandedCategory: s.toggleExpandedCategory,
+    }))
+  );
   const activeLayer = useLayerStore((s) => s.activeLayer);
   const [search, setSearch] = useState("");
 

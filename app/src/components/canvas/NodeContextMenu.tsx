@@ -94,7 +94,18 @@ export function NodeContextMenu({ menu, onClose, onStartRename }: NodeContextMen
     nodes,
     updateAppComponentData,
     updateNodeConfig,
-  } = useFlowStore();
+  } = useFlowStore(
+    useShallow((s) => ({
+      removeNode: s.removeNode,
+      duplicateNode: s.duplicateNode,
+      removeAppComponent: s.removeAppComponent,
+      duplicateAppComponent: s.duplicateAppComponent,
+      solutionNodes: s.solutionNodes,
+      nodes: s.nodes,
+      updateAppComponentData: s.updateAppComponentData,
+      updateNodeConfig: s.updateNodeConfig,
+    }))
+  );
   const infraHosts = useFlowStore(useShallow(selectInfraHostOptions));
   const { selectNode } = useSelectionStore();
   const { openPropertiesPanel } = useUIStore();
@@ -143,6 +154,8 @@ export function NodeContextMenu({ menu, onClose, onStartRename }: NodeContextMen
   return (
     <div
       ref={menuRef}
+      role="menu"
+      aria-label="Ações do nó"
       style={{ left: x, top: y }}
       className="fixed z-50 w-60 bg-background/95 backdrop-blur-sm border border-border/80 rounded-xl shadow-2xl overflow-hidden"
     >

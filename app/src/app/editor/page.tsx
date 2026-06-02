@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { ReactFlowProvider } from "@xyflow/react";
+import { toast } from "sonner";
 import { Navbar } from "@/components/layout/Navbar";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { FlowCanvas } from "@/components/canvas/FlowCanvas";
@@ -34,8 +35,11 @@ function HashImporter() {
       const data = JSON.parse(json);
       useFlowStore.getState().importProject(data);
       window.history.replaceState(null, "", window.location.pathname);
+      toast.success("Projeto carregado do link compartilhado.");
     } catch {
-      // Invalid or malformed hash — silently ignore
+      // Clear the bad hash so it doesn't keep failing on every reload
+      window.history.replaceState(null, "", window.location.pathname);
+      toast.error("O link compartilhado é inválido ou está corrompido.");
     }
   }, []);
   return null;

@@ -49,13 +49,28 @@ interface PropertiesPanelProps {
 }
 
 export function PropertiesPanel({ docked = false }: PropertiesPanelProps) {
-  const { propertiesPanelOpen, closePropertiesPanel, togglePropertiesPanelDocked } = useUIStore();
+  const { propertiesPanelOpen, closePropertiesPanel, togglePropertiesPanelDocked } = useUIStore(
+    useShallow((s) => ({
+      propertiesPanelOpen: s.propertiesPanelOpen,
+      closePropertiesPanel: s.closePropertiesPanel,
+      togglePropertiesPanelDocked: s.togglePropertiesPanelDocked,
+    }))
+  );
   const { selectedNodeId, selectedEdgeId } = useSelectionStore();
   const {
     nodes, edges, updateNodeData, updateNodeConfig, updateEdgeData,
     removeNode, removeEdge, duplicateNode,
     solutionNodes, solutionEdges, removeSolutionEdge,
-  } = useFlowStore();
+  } = useFlowStore(
+    useShallow((s) => ({
+      nodes: s.nodes, edges: s.edges,
+      updateNodeData: s.updateNodeData, updateNodeConfig: s.updateNodeConfig,
+      updateEdgeData: s.updateEdgeData,
+      removeNode: s.removeNode, removeEdge: s.removeEdge, duplicateNode: s.duplicateNode,
+      solutionNodes: s.solutionNodes, solutionEdges: s.solutionEdges,
+      removeSolutionEdge: s.removeSolutionEdge,
+    }))
+  );
 
   const hasSelection = !!selectedNodeId || !!selectedEdgeId;
   const isVisible = docked ? hasSelection : (propertiesPanelOpen && hasSelection);

@@ -48,6 +48,7 @@ import {
   DropdownMenuShortcut,
 } from "@/components/ui/dropdown-menu";
 import { useFlowStore, selectDomainNodes, selectDomainEdges, useTemporalFlowStore } from "@/stores/flow-store";
+import { useShallow } from "zustand/react/shallow";
 import { useSimulationStore } from "@/stores/simulation-store";
 import { useUIStore } from "@/stores/ui-store";
 import { useThemeStore } from "@/stores/theme-store";
@@ -62,8 +63,19 @@ export function Navbar() {
   const [cfImportOpen, setCFImportOpen] = useState(false);
 
   const { exportProject, importProject, clearCanvas, projectName, setProjectName, nodes, solutionNodes } =
-    useFlowStore();
-  const { status, setRunning, setResult, setError, reset } = useSimulationStore();
+    useFlowStore(
+      useShallow((s) => ({
+        exportProject: s.exportProject, importProject: s.importProject,
+        clearCanvas: s.clearCanvas, projectName: s.projectName,
+        setProjectName: s.setProjectName, nodes: s.nodes, solutionNodes: s.solutionNodes,
+      }))
+    );
+  const { status, setRunning, setResult, setError, reset } = useSimulationStore(
+    useShallow((s) => ({
+      status: s.status, setRunning: s.setRunning, setResult: s.setResult,
+      setError: s.setError, reset: s.reset,
+    }))
+  );
   const {
     toggleSimulationPanel,
     openSimulationPanel,
@@ -82,7 +94,27 @@ export function Navbar() {
     openShortcutsModal,
     comparisonModeActive,
     toggleComparisonMode,
-  } = useUIStore();
+  } = useUIStore(
+    useShallow((s) => ({
+      toggleSimulationPanel: s.toggleSimulationPanel,
+      openSimulationPanel: s.openSimulationPanel,
+      snapToGrid: s.snapToGrid,
+      toggleSnapToGrid: s.toggleSnapToGrid,
+      presentationMode: s.presentationMode,
+      togglePresentationMode: s.togglePresentationMode,
+      requestAutoLayout: s.requestAutoLayout,
+      toggleValidationPanel: s.toggleValidationPanel,
+      validationPanelOpen: s.validationPanelOpen,
+      toggleWhatIfPanel: s.toggleWhatIfPanel,
+      whatIfPanelOpen: s.whatIfPanelOpen,
+      wellArchitectedPanelOpen: s.wellArchitectedPanelOpen,
+      toggleWellArchitectedPanel: s.toggleWellArchitectedPanel,
+      openTemplatesDialog: s.openTemplatesDialog,
+      openShortcutsModal: s.openShortcutsModal,
+      comparisonModeActive: s.comparisonModeActive,
+      toggleComparisonMode: s.toggleComparisonMode,
+    }))
+  );
   const { theme, toggleTheme } = useThemeStore();
   const { toggleHistoryPanel } = useHistoryStore();
   const { open: openCommandPalette } = useCommandPaletteStore();
@@ -155,14 +187,21 @@ export function Navbar() {
       const reader = new FileReader();
       reader.onload = (evt) => {
         try {
-          importProject(JSON.parse(evt.target?.result as string));
+          const result = evt.target?.result;
+          if (typeof result !== "string") throw new Error("Conteúdo de arquivo inválido");
+          importProject(JSON.parse(result));
           toast.success("Projeto importado.");
         } catch {
           toast.error("Arquivo inválido ou corrompido.");
+        } finally {
+          e.target.value = "";
         }
       };
+      reader.onerror = () => {
+        toast.error("Não foi possível ler o arquivo.");
+        e.target.value = "";
+      };
       reader.readAsText(file);
-      e.target.value = "";
     },
     [importProject]
   );
@@ -354,7 +393,7 @@ export function Navbar() {
           <div className="flex items-center gap-0.5 bg-muted/60 rounded-lg p-0.5">
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button size="icon" variant="ghost" className="h-7 w-7 rounded-md" onClick={() => undo()} disabled={!canUndo}>
+                <Button size="icon" variant="ghost" aria-label="Desfazer" className="h-7 w-7 rounded-md" onClick={() => undo()} disabled={!canUndo}>
                   <Undo2 className="w-3.5 h-3.5" />
                 </Button>
               </TooltipTrigger>
@@ -362,7 +401,7 @@ export function Navbar() {
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button size="icon" variant="ghost" className="h-7 w-7 rounded-md" onClick={() => redo()} disabled={!canRedo}>
+                <Button size="icon" variant="ghost" aria-label="Refazer" className="h-7 w-7 rounded-md" onClick={() => redo()} disabled={!canRedo}>
                   <Redo2 className="w-3.5 h-3.5" />
                 </Button>
               </TooltipTrigger>
@@ -449,6 +488,7 @@ export function Navbar() {
               <Button
                 size="icon"
                 variant="outline"
+                aria-label="Compartilhar diagrama"
                 className="h-8 w-8"
                 onClick={handleShare}
               >
@@ -464,6 +504,7 @@ export function Navbar() {
               <Button
                 size="icon"
                 variant="outline"
+                aria-label="Modo de comparação"
                 className={cn(
                   "h-8 w-8",
                   comparisonModeActive && "text-primary border-primary/40 bg-primary/5"
@@ -610,7 +651,7 @@ export function Navbar() {
           {/* Keyboard shortcuts help */}
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={openShortcutsModal}>
+              <Button size="icon" variant="ghost" aria-label="Atalhos de teclado" className="h-8 w-8" onClick={openShortcutsModal}>
                 <HelpCircle className="w-4 h-4" />
               </Button>
             </TooltipTrigger>
@@ -621,7 +662,7 @@ export function Navbar() {
           <motion.div whileTap={{ rotate: 20 }} transition={{ duration: 0.15 }}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={toggleTheme}>
+                <Button size="icon" variant="ghost" aria-label="Alternar tema claro/escuro" className="h-8 w-8" onClick={toggleTheme}>
                   {theme === "dark" ? (
                     <Sun className="w-4 h-4 text-amber-400" />
                   ) : (

@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { useCommandPaletteStore } from "@/stores/command-palette-store";
 import { useLayerStore } from "@/stores/layer-store";
 import { useFlowStore, selectDomainNodes, selectDomainEdges } from "@/stores/flow-store";
+import { useShallow } from "zustand/react/shallow";
 import { useUIStore } from "@/stores/ui-store";
 import { useThemeStore } from "@/stores/theme-store";
 import { useHistoryStore } from "@/stores/history-store";
@@ -63,11 +64,22 @@ export function CommandPalette() {
 
   const { setActiveLayer } = useLayerStore();
   const activeLayer = useLayerStore((s) => s.activeLayer);
-  const { nodes, clearCanvas } = useFlowStore();
+  const { nodes, clearCanvas } = useFlowStore(
+    useShallow((s) => ({ nodes: s.nodes, clearCanvas: s.clearCanvas }))
+  );
   const {
     toggleValidationPanel, toggleWhatIfPanel, requestAutoLayout,
     toggleSnapToGrid, togglePresentationMode, openSimulationPanel,
-  } = useUIStore();
+  } = useUIStore(
+    useShallow((s) => ({
+      toggleValidationPanel: s.toggleValidationPanel,
+      toggleWhatIfPanel: s.toggleWhatIfPanel,
+      requestAutoLayout: s.requestAutoLayout,
+      toggleSnapToGrid: s.toggleSnapToGrid,
+      togglePresentationMode: s.togglePresentationMode,
+      openSimulationPanel: s.openSimulationPanel,
+    }))
+  );
   const { theme, toggleTheme } = useThemeStore();
   const { toggleHistoryPanel } = useHistoryStore();
   const { setRunning, setResult, setError, reset } = useSimulationStore();
