@@ -65,6 +65,7 @@ const SERVICE_PRESETS: Partial<Record<string, ServicePreset[]>> = {
 };
 import { cn } from "@/lib/utils";
 import { useFlowStore, selectInfraHostOptions } from "@/stores/flow-store";
+import { useShallow } from "zustand/react/shallow";
 import { useSelectionStore } from "@/stores/selection-store";
 import { useUIStore } from "@/stores/ui-store";
 import { registry } from "@/registry";
@@ -94,7 +95,7 @@ export function NodeContextMenu({ menu, onClose, onStartRename }: NodeContextMen
     updateAppComponentData,
     updateNodeConfig,
   } = useFlowStore();
-  const infraHosts = useFlowStore(selectInfraHostOptions);
+  const infraHosts = useFlowStore(useShallow(selectInfraHostOptions));
   const { selectNode } = useSelectionStore();
   const { openPropertiesPanel } = useUIStore();
 

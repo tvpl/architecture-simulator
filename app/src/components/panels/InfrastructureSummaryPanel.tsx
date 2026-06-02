@@ -6,12 +6,13 @@
 import React, { useMemo, useState } from "react";
 import { Layers, ChevronDown, ChevronUp } from "lucide-react";
 import { useFlowStore, selectDomainNodes } from "@/stores/flow-store";
+import { useShallow } from "zustand/react/shallow";
 import { registry } from "@/registry";
 import { useLayerStore } from "@/stores/layer-store";
 
 export function InfrastructureSummaryPanel() {
   const activeLayer = useLayerStore((s) => s.activeLayer);
-  const domainNodes = useFlowStore(selectDomainNodes);
+  const domainNodes = useFlowStore(useShallow(selectDomainNodes));
   const [collapsed, setCollapsed] = useState(false);
 
   const categoryCounts = useMemo(() => {

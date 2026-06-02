@@ -19,6 +19,7 @@ import "@xyflow/react/dist/style.css";
 import { motion, AnimatePresence } from "framer-motion";
 import { LayoutTemplate, Upload, MousePointer2, Trash2, Copy } from "lucide-react";
 import { useFlowStore, type FlowNode, type FlowEdge, type AppFlowNode, selectInfraHostOptions } from "@/stores/flow-store";
+import { useShallow } from "zustand/react/shallow";
 import { useSelectionStore } from "@/stores/selection-store";
 import { useUIStore } from "@/stores/ui-store";
 import { useCommandPaletteStore } from "@/stores/command-palette-store";
@@ -108,7 +109,7 @@ export function FlowCanvas() {
   const onSolutionEdgesChange = useFlowStore((s) => s.onSolutionEdgesChange);
   const onSolutionConnect = useFlowStore((s) => s.onSolutionConnect);
   const addAppComponent = useFlowStore((s) => s.addAppComponent);
-  const infraHosts = useFlowStore(selectInfraHostOptions);
+  const infraHosts = useFlowStore(useShallow(selectInfraHostOptions));
 
   const { selectNode, selectEdge, clearSelection } = useSelectionStore();
   const { openPropertiesPanel } = useUIStore();

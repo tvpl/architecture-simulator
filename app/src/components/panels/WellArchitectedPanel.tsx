@@ -23,6 +23,7 @@ import {
   selectDomainNodes,
   selectDomainEdges,
 } from "@/stores/flow-store";
+import { useShallow } from "zustand/react/shallow";
 import { useUIStore } from "@/stores/ui-store";
 import {
   analyzeArchitecture,
@@ -304,8 +305,8 @@ function PillarSection({ pillar }: { pillar: WAPillarScore }) {
 // ─── Main panel ───────────────────────────────────────────────────────────────
 
 export function WellArchitectedPanel() {
-  const domainNodes = useFlowStore(selectDomainNodes);
-  const domainEdges = useFlowStore(selectDomainEdges);
+  const domainNodes = useFlowStore(useShallow(selectDomainNodes));
+  const domainEdges = useFlowStore(useShallow(selectDomainEdges));
   const { wellArchitectedPanelOpen, toggleWellArchitectedPanel } = useUIStore();
 
   const report = useMemo(

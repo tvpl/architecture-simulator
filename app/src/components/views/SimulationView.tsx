@@ -21,6 +21,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useSimulationStore } from "@/stores/simulation-store";
 import { useFlowStore, selectDomainNodes } from "@/stores/flow-store";
+import { useShallow } from "zustand/react/shallow";
 import { useSelectionStore } from "@/stores/selection-store";
 import { useUIStore } from "@/stores/ui-store";
 import { formatLatency } from "@/lib/formatters";
@@ -310,7 +311,7 @@ function SimulationInsightsPanel({ simResults }: { simResults: SimulationResult 
 export function SimulationView() {
   const simStatus = useSimulationStore((s) => s.status);
   const simResults = useSimulationStore((s) => s.result);
-  const domainNodes = useFlowStore(selectDomainNodes);
+  const domainNodes = useFlowStore(useShallow(selectDomainNodes));
 
   if (domainNodes.length === 0) {
     return (

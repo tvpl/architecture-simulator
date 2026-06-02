@@ -9,6 +9,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { X, TrendingDown, TrendingUp, Minus, Calculator } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFlowStore, selectDomainNodes } from "@/stores/flow-store";
+import { useShallow } from "zustand/react/shallow";
 import { useUIStore } from "@/stores/ui-store";
 import { calculateServiceCost } from "@/domain/services/cost";
 import { formatUSD } from "@/lib/formatters";
@@ -81,7 +82,7 @@ function buildMultipliers(nodes: ArchitectureNode[]): Record<string, Multiplier>
 
 export function WhatIfPanel() {
   const { whatIfPanelOpen, toggleWhatIfPanel } = useUIStore();
-  const nodes = useFlowStore((s) => selectDomainNodes(s));
+  const nodes = useFlowStore(useShallow(selectDomainNodes));
 
   // Local overrides: nodeId-key -> new value
   const [overrides, setOverrides] = useState<Record<string, number>>({});

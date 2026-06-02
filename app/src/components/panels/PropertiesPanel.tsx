@@ -12,6 +12,7 @@ import { registry } from "@/registry";
 import { appComponentRegistry } from "@/registry/app-components";
 import { useSelectionStore } from "@/stores/selection-store";
 import { useFlowStore, selectInfraHostOptions } from "@/stores/flow-store";
+import { useShallow } from "zustand/react/shallow";
 import { useUIStore } from "@/stores/ui-store";
 import { PROTOCOL_INFO, CONNECTION_PROTOCOLS } from "@/domain/entities/edge";
 import type { ConfigField } from "@/registry/types";
@@ -302,7 +303,7 @@ function AppComponentPropertiesContent({
   const updateAppComponentConfig = useFlowStore((s) => s.updateAppComponentConfig);
   const removeAppComponent = useFlowStore((s) => s.removeAppComponent);
   const duplicateAppComponent = useFlowStore((s) => s.duplicateAppComponent);
-  const infraHosts = useFlowStore(selectInfraHostOptions);
+  const infraHosts = useFlowStore(useShallow(selectInfraHostOptions));
 
   const flowNode = solutionNodes.find((n) => n.id === nodeId);
   const data = flowNode?.data;
