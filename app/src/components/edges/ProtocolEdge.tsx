@@ -197,6 +197,8 @@ const ProtocolEdge = memo(function ProtocolEdge({
                 onChange={(e) => setEditValue(e.target.value)}
                 onBlur={commitEdit}
                 onKeyDown={handleKeyDown}
+                aria-label="Editar rótulo da conexão"
+                placeholder="Rótulo…"
                 className={cn(
                   "mt-0.5 w-28 rounded-md border border-primary px-1.5 py-0.5",
                   "text-[10px] bg-background text-foreground outline-none shadow-md",

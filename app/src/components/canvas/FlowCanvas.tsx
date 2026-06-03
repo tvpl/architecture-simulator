@@ -18,7 +18,9 @@ import "@xyflow/react/dist/style.css";
 
 import { motion, AnimatePresence } from "framer-motion";
 import { LayoutTemplate, Upload, MousePointer2, Trash2, Copy } from "lucide-react";
+import { toast } from "sonner";
 import { useFlowStore, type FlowNode, type FlowEdge, type AppFlowNode, selectInfraHostOptions } from "@/stores/flow-store";
+import { useShallow } from "zustand/react/shallow";
 import { useSelectionStore } from "@/stores/selection-store";
 import { useUIStore } from "@/stores/ui-store";
 import { useCommandPaletteStore } from "@/stores/command-palette-store";
@@ -108,7 +110,7 @@ export function FlowCanvas() {
   const onSolutionEdgesChange = useFlowStore((s) => s.onSolutionEdgesChange);
   const onSolutionConnect = useFlowStore((s) => s.onSolutionConnect);
   const addAppComponent = useFlowStore((s) => s.addAppComponent);
-  const infraHosts = useFlowStore(selectInfraHostOptions);
+  const infraHosts = useFlowStore(useShallow(selectInfraHostOptions));
 
   const { selectNode, selectEdge, clearSelection } = useSelectionStore();
   const { openPropertiesPanel } = useUIStore();
@@ -377,12 +379,21 @@ export function FlowCanvas() {
     const reader = new FileReader();
     reader.onload = (evt) => {
       try {
-        const data = JSON.parse(evt.target?.result as string);
-        useFlowStore.getState().importProject(data);
-      } catch { /* ignore */ }
+        const result = evt.target?.result;
+        if (typeof result !== "string") throw new Error("Conteúdo de arquivo inválido");
+        useFlowStore.getState().importProject(JSON.parse(result));
+        toast.success("Projeto importado.");
+      } catch {
+        toast.error("Arquivo inválido ou corrompido.");
+      } finally {
+        e.target.value = "";
+      }
+    };
+    reader.onerror = () => {
+      toast.error("Não foi possível ler o arquivo.");
+      e.target.value = "";
     };
     reader.readAsText(file);
-    e.target.value = "";
   }, []);
 
   const showEmptyOnboarding = activeNodes.length === 0 && (activeLayer === "architecture" || activeLayer === "solution-design");

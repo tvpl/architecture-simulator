@@ -33,6 +33,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useUIStore } from "@/stores/ui-store";
 import { useLayerStore } from "@/stores/layer-store";
 import { useFlowStore, selectInfraHostOptions } from "@/stores/flow-store";
+import { useShallow } from "zustand/react/shallow";
 import { useCommandPaletteStore } from "@/stores/command-palette-store";
 import { ServiceIcon } from "@/components/nodes/base/ServiceIcon";
 import { toast } from "sonner";
@@ -61,7 +62,16 @@ export function Sidebar() {
     setSidebarWidth,
     expandedCategories,
     toggleExpandedCategory,
-  } = useUIStore();
+  } = useUIStore(
+    useShallow((s) => ({
+      sidebarCollapsed: s.sidebarCollapsed,
+      toggleSidebar: s.toggleSidebar,
+      sidebarWidth: s.sidebarWidth,
+      setSidebarWidth: s.setSidebarWidth,
+      expandedCategories: s.expandedCategories,
+      toggleExpandedCategory: s.toggleExpandedCategory,
+    }))
+  );
   const activeLayer = useLayerStore((s) => s.activeLayer);
   const [search, setSearch] = useState("");
 
@@ -327,7 +337,7 @@ export function Sidebar() {
 // ── InfrastructureContext ─────────────────────────────────────────────────────
 
 function InfrastructureContext() {
-  const infraHosts = useFlowStore((s) => selectInfraHostOptions(s));
+  const infraHosts = useFlowStore(useShallow(selectInfraHostOptions));
 
   if (infraHosts.length === 0) {
     return (

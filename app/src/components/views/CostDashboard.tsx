@@ -21,6 +21,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useFlowStore, selectDomainNodes, selectSolutionDomainNodes } from "@/stores/flow-store";
+import { useShallow } from "zustand/react/shallow";
 import { calculateServiceCost, estimateAppComponentCost } from "@/domain/services/cost";
 import { formatUSD, formatBRL } from "@/lib/formatters";
 import { registry } from "@/registry";
@@ -38,8 +39,8 @@ const ENVIRONMENTS = [
 const PROJECTION_MONTHS = [1, 3, 6, 12] as const;
 
 export function CostDashboard() {
-  const domainNodes = useFlowStore(selectDomainNodes);
-  const appNodes = useFlowStore(selectSolutionDomainNodes);
+  const domainNodes = useFlowStore(useShallow(selectDomainNodes));
+  const appNodes = useFlowStore(useShallow(selectSolutionDomainNodes));
   const [currency, setCurrency] = useState<"USD" | "BRL">("USD");
   const [budgetInput, setBudgetInput] = useState("");
 

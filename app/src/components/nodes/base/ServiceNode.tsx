@@ -73,6 +73,16 @@ const ServiceNode = memo(function ServiceNode({ data, selected }: NodeProps<Flow
     <motion.div
       layout
       onClick={() => selectNode(data.id)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          selectNode(data.id);
+        }
+      }}
+      role="button"
+      tabIndex={0}
+      aria-label={`Selecionar ${data.label}`}
+      aria-pressed={selected}
       initial={{ opacity: 0, scale: 0.88, y: 6 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       transition={{ type: "spring", stiffness: 400, damping: 30, mass: 0.8 }}

@@ -191,6 +191,88 @@ describe("removeNode cascade", () => {
     expect(useFlowStore.getState().nodes).toHaveLength(0);
     expect(useFlowStore.getState().solutionNodes).toHaveLength(0);
   });
+
+  it("removing infra node also removes solution edges orphaned by the cascade", () => {
+    const store = useFlowStore.getState();
+    const infraId = store.addNode("eks", { x: 0, y: 0 }, "EKS Cluster");
+    const a = store.addAppComponent("microservice", { x: 10, y: 10 }, infraId, "Svc A");
+    const b = store.addAppComponent("worker", { x: 20, y: 20 }, infraId, "Worker B");
+
+    // Connect the two hosted components
+    store.onSolutionConnect({ source: a, target: b, sourceHandle: null, targetHandle: null });
+    expect(useFlowStore.getState().solutionEdges).toHaveLength(1);
+
+    store.removeNode(infraId);
+
+    // Both nodes and the edge between them must be gone — no orphaned edges
+    expect(useFlowStore.getState().solutionNodes).toHaveLength(0);
+    expect(useFlowStore.getState().solutionEdges).toHaveLength(0);
+  });
+});
+
+// ── import robustness (malformed payloads) ────────────────────────────────────
+
+describe("importProject — malformed payloads", () => {
+  beforeEach(freshStore);
+
+  it("coerces a malformed V2 payload into safe defaults", () => {
+    useFlowStore.getState().importProject(
+      { version: 2, nodes: "oops", edges: null } as unknown as ProjectData
+    );
+    const s = useFlowStore.getState();
+    expect(Array.isArray(s.nodes)).toBe(true);
+    expect(s.nodes).toHaveLength(0);
+    expect(Array.isArray(s.edges)).toBe(true);
+    expect(typeof s.projectName).toBe("string");
+    expect(s.projectName.length).toBeGreaterThan(0);
+  });
+
+  it("handles a V3 payload missing nested layers", () => {
+    useFlowStore.getState().importProject(
+      { version: 3, name: "X", infrastructure: {} } as unknown as ProjectData
+    );
+    const s = useFlowStore.getState();
+    expect(s.nodes).toHaveLength(0);
+    expect(s.solutionNodes).toHaveLength(0);
+    expect(s.projectName).toBe("X");
+  });
+
+  it("throws on non-object data instead of corrupting state", () => {
+    expect(() =>
+      useFlowStore.getState().importProject(null as unknown as ProjectData)
+    ).toThrow();
+  });
+
+  it("drops individual malformed nodes while keeping valid ones", () => {
+    const valid = {
+      id: "ec2-1",
+      type: "service-node",
+      position: { x: 0, y: 0 },
+      data: { id: "ec2-1", label: "EC2", type: "ec2", category: "compute", config: {} },
+    };
+    const payload = {
+      version: 3,
+      name: "Mixed",
+      infrastructure: {
+        nodes: [
+          valid,
+          { id: "bad-1", data: {} }, // missing position → dropped
+          { position: { x: 1, y: 1 }, data: {} }, // missing id → dropped
+          "garbage", // not an object → dropped
+        ],
+        edges: [
+          { id: "e1", source: "ec2-1", target: "ec2-1" },
+          { id: "e2", source: "ec2-1" }, // missing target → dropped
+        ],
+      },
+      solutionDesign: { nodes: [], edges: [] },
+    };
+
+    useFlowStore.getState().importProject(payload as unknown as ProjectData);
+    const s = useFlowStore.getState();
+    expect(s.nodes.map((n) => n.id)).toEqual(["ec2-1"]);
+    expect(s.edges.map((e) => e.id)).toEqual(["e1"]);
+  });
 });
 
 // ── exportProject / importProject round-trip ──────────────────────────────────
